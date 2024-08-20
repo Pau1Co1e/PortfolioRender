@@ -13,10 +13,11 @@ from scipy.stats import linregress
 from skimage.color import rgb2gray
 from transformers import pipeline
 from werkzeug.utils import secure_filename
+from flask_cors import CORS
 
 # Flask app configuration
 app = Flask(__name__)
-
+CORS(app)
 # List of allowed redirects
 ALLOWED_REDIRECTS = {
     'index': 'index',
@@ -78,7 +79,7 @@ def chatbot():
 @csrf.exempt  # Ensure CSRF protection is explicitly managed
 def chatbot_answer():
     try:
-        data = request.get_json()
+        data = request.get_json()  # Get the JSON data sent by the form
 
         logger.info(f"Received data: {data}")
 
@@ -122,8 +123,11 @@ def download():
     return render_template('download.html')
 
 
-@app.route('/experience')
-def projects():
+@app.route('/experience', methods=['GET', 'POST'])
+def experience():
+    if request.method == 'POST':
+        # Handle the POST request here (e.g., form submission)
+        pass
     return render_template('experience.html')
 
 
