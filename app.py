@@ -2,6 +2,7 @@ import datetime
 import logging
 import os
 import numpy as np
+import torch.backends.mps
 from PIL import Image
 from flask import Flask, render_template, request, jsonify, flash, redirect, url_for, send_file, session
 from flask_frozen import Freezer
@@ -53,6 +54,8 @@ freezer = Freezer(app)
 
 # Load BERT model for FAQ Chatbot
 faq_pipeline = pipeline("question-answering", model="distilbert-base-uncased-distilled-squad", device="mps")
+
+faq_pipeline = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
 
 @app.before_request
@@ -134,22 +137,22 @@ def chatbot_answer():
 
 @app.route('/about_me')
 def about_me():
-    return render_template('public/about_me.html')
+    return render_template('about_me.html')
 
 
 @app.route('/contact_me')
 def contact_me():
-    return render_template('public/contact_me.html')
+    return render_template('contact_me.html')
 
 
 @app.route('/download')
 def download():
-    return render_template('public/download.html')
+    return render_template('download.html')
 
 
 @app.route('/experience')
 def projects():
-    return render_template('public/experience.html')
+    return render_template('experience.html')
 
 
 @app.route('/download_report')
