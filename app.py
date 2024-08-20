@@ -67,28 +67,6 @@ def index():
     return render_template('index.html')
 
 
-@app.route('/upload', methods=['GET', 'POST'])
-def upload_file():
-    if request.method == 'POST':
-        if 'file' not in request.files:
-            flash('No file part', 'danger')
-            return safe_redirect('fractal')
-
-        file = request.files['file']
-        if file.filename == '':
-            flash('No selected file', 'danger')
-            return safe_redirect('fractal')
-
-        if file and allowed_file(file.filename):
-            filename = secure_filename(file.filename)
-            image_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            file.save(image_path)
-            fractal_dimension, image_paths = calculate_fractal_dimension(image_path)
-            return render_template('fractal_result.html', fractal_dimension=fractal_dimension, image_paths=image_paths)
-
-    return render_template('upload.html')
-
-
 @app.route('/chatbot')
 def chatbot():
     session['visit_time'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
