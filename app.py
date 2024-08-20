@@ -1,11 +1,9 @@
-import datetime
-import logging
 import os
+import datetime
 import numpy as np
-import torch.backends.mps
 from PIL import Image
+import logging
 from flask import Flask, render_template, request, jsonify, flash, redirect, url_for, send_file, session
-from flask_frozen import Freezer
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf.csrf import CSRFProtect, CSRFError
 from matplotlib import pyplot as plt
@@ -29,33 +27,29 @@ ALLOWED_REDIRECTS = {
     'fractal': 'fractal'
 }
 
-app.secret_key = os.getenv('SECRET_KEY', 'your_secret_key')
+app.secret_key = os.getenv('SECRET_KEY', 'default_secret_key')
 app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'static/uploads/')
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # Limit file size to 16MB
-app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'gif'}  # Set allowed extensions
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///site.db'
+app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'gif'}
+# Use DATABASE_URL environment variable if available, fallback to SQLite for local and Render environments
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///site.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SESSION_COOKIE_SECURE'] = True  # Set to True if using HTTPS in production
+app.config['SESSION_COOKIE_SECURE'] = True
 app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # Can be 'Strict' or 'None' depending on your setup
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
 # Initialize CSRF protection
 csrf = CSRFProtect(app)
 
-# Initialize SQLAlchemy with the Flask app
+# Initialize SQLAlchemy
 db = SQLAlchemy(app)
 
 # Initialize logging
-logging.basicConfig(filename='docs/chatbot.log', level=logging.INFO, format='%(asctime)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 logger = logging.getLogger()
 
-# Initialize the freezer for static site generation
-freezer = Freezer(app)
-
-# Load BERT model for FAQ Chatbot
-faq_pipeline = pipeline("question-answering", model="distilbert-base-uncased-distilled-squad", device="mps")
-
-faq_pipeline = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+# Load the FAQ pipeline model
+faq_pipeline = pipeline("question-answering", model="distilbert-base-cased-distilled-squad")
 
 
 @app.before_request
@@ -318,6 +312,6 @@ def safe_redirect(endpoint):
         return redirect(url_for('index'))  # Default to the homepage for safety
 
 
-# Run the Flask app
 if __name__ == '__main__':
-    app.run(debug=False, ssl_context='adhoc', port=5000)
+    port = int(os.getenv('PORT', 5000))  # Render provides the PORT variable; default to 5000 if not set
+    app.run(host='0.0.0.0', port=port)
