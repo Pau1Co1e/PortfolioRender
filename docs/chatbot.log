@@ -1,0 +1,65 @@
+2024-08-20 12:28:52,333 - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+2024-08-20 12:28:52,333 - [33mPress CTRL+C to quit[0m
+2024-08-20 12:29:29,018 - 127.0.0.1 - - [20/Aug/2024 12:29:29] code 400, message Bad request version ('çpÓ\x87dçIä\x14\x7fkØ2ÁGù>µIÓ¡\x00*ZZ\x13\x01\x13\x02\x13\x03À,À+Ì©À0À/Ì¨À')
+2024-08-20 12:29:29,019 - 127.0.0.1 - - [20/Aug/2024 12:29:29] "[35m[1m\x16\x03\x01\x02\x00\x01\x00\x01ü\x03\x03\x84¦á&a\x90­ÇSé\x97c\x8f[§4\x9bB-Ö.?\x9f\x92¡X\x88\x94P¶\x10À k\x91ªí*a\x91égÛ\x85çpÓ\x87dçIä\x14\x7fkØ2ÁGù>µIÓ¡\x00*ZZ\x13\x01\x13\x02\x13\x03À,À+Ì©À0À/Ì¨À[0m" HTTPStatus.BAD_REQUEST -
+2024-08-20 12:29:29,023 - 127.0.0.1 - - [20/Aug/2024 12:29:29] code 400, message Bad request version ('6´\x07)°;eØ"è\x08Ä»!ÓQXE\x92t\x00*ºº\x13\x01\x13\x02\x13\x03À,À+Ì©À0À/Ì¨À')
+2024-08-20 12:29:29,023 - 127.0.0.1 - - [20/Aug/2024 12:29:29] "[35m[1m\x16\x03\x01\x02\x00\x01\x00\x01ü\x03\x03\x04`ë È´%7\x7f¥UÓÖ,®\x8fl\x05Cc\x09~äðA,âAZ9ÝG b°\x9d\x84t[,\x7fCèß\x0c6´\x07)°;eØ"è\x08Ä»!ÓQXE\x92t\x00*ºº\x13\x01\x13\x02\x13\x03À,À+Ì©À0À/Ì¨À[0m" HTTPStatus.BAD_REQUEST -
+2024-08-20 12:29:29,024 - 127.0.0.1 - - [20/Aug/2024 12:29:29] code 400, message Bad request syntax ('\x16\x03\x01\x02\x00\x01\x00\x01ü\x03\x03Î{M²\x0f|\\Îî\x18rÏ6\x8a\\r§²Å¢|\x17ñ')
+2024-08-20 12:29:29,024 - 127.0.0.1 - - [20/Aug/2024 12:29:29] "[35m[1m\x16\x03\x01\x02\x00\x01\x00\x01ü\x03\x03Î{M²\x0f|\\Îî\x18rÏ6\x8a\\r§²Å¢|\x17ñ[0m" HTTPStatus.BAD_REQUEST -
+2024-08-20 12:29:29,025 - 127.0.0.1 - - [20/Aug/2024 12:29:29] code 400, message Bad request version ('*ÃuÊ`¥\x9a«ö\x00*\x8a\x8a\x13\x01\x13\x02\x13\x03À,À+Ì©À0À/Ì¨À')
+2024-08-20 12:29:29,026 - 127.0.0.1 - - [20/Aug/2024 12:29:29] "[35m[1m\x16\x03\x01\x02\x00\x01\x00\x01ü\x03\x03´\x90ìf7Ê{é9<\x88QÕ-¡?ç\x1dß u"â48T\x1dïÊãu\x81 J\x0b/`ñ\x07a\x91\x9e\x05:¬·?/ü£xÅª@\x15\x1f*ÃuÊ`¥\x9a«ö\x00*\x8a\x8a\x13\x01\x13\x02\x13\x03À,À+Ì©À0À/Ì¨À[0m" HTTPStatus.BAD_REQUEST -
+2024-08-20 12:29:29,039 - 127.0.0.1 - - [20/Aug/2024 12:29:29] code 400, message Bad request version ('\x96\x00*ºº\x13\x01\x13\x02\x13\x03À,À+Ì©À0À/Ì¨À')
+2024-08-20 12:29:29,039 - 127.0.0.1 - - [20/Aug/2024 12:29:29] "[35m[1m\x16\x03\x01\x02\x00\x01\x00\x01ü\x03\x03Ö¼É\x99ö§ê\x9d&\x1edñ¹x\x84\x98§\x80öF6p¦9á \x1cøv7Ì\x0d ài1ÇI7\x92\x07\x1c\x99Y,_Ïú\x1a½¶Y\x01\x98ðÃðçK\x04\x9aÅÅ\x1d\x96\x00*ºº\x13\x01\x13\x02\x13\x03À,À+Ì©À0À/Ì¨À[0m" HTTPStatus.BAD_REQUEST -
+2024-08-20 12:29:29,041 - 127.0.0.1 - - [20/Aug/2024 12:29:29] code 400, message Bad request version ("/'\x12\x19o\x91÷r\x00*êê\x13\x01\x13\x02\x13\x03À,À+Ì©À0À/Ì¨À")
+2024-08-20 12:29:29,041 - 127.0.0.1 - - [20/Aug/2024 12:29:29] "[35m[1m\x16\x03\x01\x02\x00\x01\x00\x01ü\x03\x03\x183OåÄ½%\x15²Ë×gî&\x19Wm\x1c\x10£úÂ¤ËeYoá3Åi\x04 4\x84\x8d0öÇ¼s-²\x92N`½\x9fV\x13ü®Kz¢q\x09/'\x12\x19o\x91÷r\x00*êê\x13\x01\x13\x02\x13\x03À,À+Ì©À0À/Ì¨À[0m" HTTPStatus.BAD_REQUEST -
+2024-08-20 12:29:29,042 - 127.0.0.1 - - [20/Aug/2024 12:29:29] code 400, message Bad request version ('|NßÿZÝÓÛ\x84õ¥0Ö\x1aê¦\x19Ý[ÂÍ\xad9åè0q}6\x91É$\x00*ZZ\x13\x01\x13\x02\x13\x03À,À+Ì©À0À/Ì¨À')
+2024-08-20 12:29:29,042 - 127.0.0.1 - - [20/Aug/2024 12:29:29] "[35m[1m\x16\x03\x01\x02\x00\x01\x00\x01ü\x03\x03f5JLu\x08ÈùeØ\x88Òi÷\x91Y¥ëâSå¢ÙeýÝ\x1eÌ \x01&ð |NßÿZÝÓÛ\x84õ¥0Ö\x1aê¦\x19Ý[ÂÍ­9åè0q}6\x91É$\x00*ZZ\x13\x01\x13\x02\x13\x03À,À+Ì©À0À/Ì¨À[0m" HTTPStatus.BAD_REQUEST -
+2024-08-20 12:29:29,043 - 127.0.0.1 - - [20/Aug/2024 12:29:29] code 400, message Bad request version ('Á\x0e^Å\x91V\x01Âq¾k\x00*::\x13\x01\x13\x02\x13\x03À,À+Ì©À0À/Ì¨À')
+2024-08-20 12:29:29,043 - 127.0.0.1 - - [20/Aug/2024 12:29:29] "[35m[1m\x16\x03\x01\x02\x00\x01\x00\x01ü\x03\x03k\x94&\x83è¾Ú\x1f}Õ}C[ø8ÎÆ\x85Á\x13æ>^Ê¸\\-\x89Sû"E \x06\x9e\x94È\x98E¯\x07âo\x8fk¥{FjÇ1]Û\x1fÁ\x0e^Å\x91V\x01Âq¾k\x00*::\x13\x01\x13\x02\x13\x03À,À+Ì©À0À/Ì¨À[0m" HTTPStatus.BAD_REQUEST -
+2024-08-20 12:29:58,183 - 127.0.0.1 - - [20/Aug/2024 12:29:58] code 400, message Bad request version ('3ÖÅæUÑ´P\x01Wh\x00*ºº\x13\x01\x13\x02\x13\x03À,À+Ì©À0À/Ì¨À')
+2024-08-20 12:29:58,183 - 127.0.0.1 - - [20/Aug/2024 12:29:58] "[35m[1m\x16\x03\x01\x02\x00\x01\x00\x01ü\x03\x03³\x07ËË£âèlúßØ\x94\x9eÜH\x1aÊ\x80M:æ\x87L\x99N\x07[·\x15,AÅ \x9cGüìêUZ[æÜ£ZÉ\x84\x05r\x92Ý\x9cf\x0b3ÖÅæUÑ´P\x01Wh\x00*ºº\x13\x01\x13\x02\x13\x03À,À+Ì©À0À/Ì¨À[0m" HTTPStatus.BAD_REQUEST -
+2024-08-20 12:29:58,185 - 127.0.0.1 - - [20/Aug/2024 12:29:58] code 400, message Bad request version ('\x00*úú\x13\x01\x13\x02\x13\x03À,À+Ì©À0À/Ì¨À')
+2024-08-20 12:29:58,186 - 127.0.0.1 - - [20/Aug/2024 12:29:58] "[35m[1m\x16\x03\x01\x02\x00\x01\x00\x01ü\x03\x03m\x1aÖÏ_j\x0cÊL'ÂrÍÃ<9|é\x92OL\x12:óÈzGÙD\x1eÈ¶ \x17)µ\x14f^sxsÌ`Ê1\x8ajÑ\x9eàÏð\x96-°\x948ò\x8b;£\x9aÚ\x1e\x00*úú\x13\x01\x13\x02\x13\x03À,À+Ì©À0À/Ì¨À[0m" HTTPStatus.BAD_REQUEST -
+2024-08-20 12:29:58,187 - 127.0.0.1 - - [20/Aug/2024 12:29:58] code 400, message Bad request version ('\x04\x0f\xadCoÚ~\x02]\x10m7\x02A3\x8cfy\x84\x9eÔ\x01A,\x95o*H\x9eÍ\x1a¼\x00*úú\x13\x01\x13\x02\x13\x03À,À+Ì©À0À/Ì¨À')
+2024-08-20 12:29:58,187 - 127.0.0.1 - - [20/Aug/2024 12:29:58] "[35m[1m\x16\x03\x01\x02\x00\x01\x00\x01ü\x03\x03Á]\x97¼î\x19\x82é\x08Å¹©\x08Þ\x1dWÙ9(\x8dëñm\x1a¡ÊÍ\x9cY\x1dÙ\x96 \x04\x0f­CoÚ~\x02]\x10m7\x02A3\x8cfy\x84\x9eÔ\x01A,\x95o*H\x9eÍ\x1a¼\x00*úú\x13\x01\x13\x02\x13\x03À,À+Ì©À0À/Ì¨À[0m" HTTPStatus.BAD_REQUEST -
+2024-08-20 12:29:58,189 - 127.0.0.1 - - [20/Aug/2024 12:29:58] code 400, message Bad request version ('È:Ü\x00*ªª\x13\x01\x13\x02\x13\x03À,À+Ì©À0À/Ì¨À')
+2024-08-20 12:29:58,189 - 127.0.0.1 - - [20/Aug/2024 12:29:58] "[35m[1m\x16\x03\x01\x02\x00\x01\x00\x01ü\x03\x03!Q\x89\x8bÊ¡?\x9b\x90\x0e\x97\x97PY/ÊÎÏ`ÖVPô[´ó|c\x86ß\x87¹ Ï\x13Ì\x8c8Çq\x08ñÄ ãzßËnìçóéPnÜ] SDY\x0cÈ:Ü\x00*ªª\x13\x01\x13\x02\x13\x03À,À+Ì©À0À/Ì¨À[0m" HTTPStatus.BAD_REQUEST -
+2024-08-20 12:29:58,221 - 127.0.0.1 - - [20/Aug/2024 12:29:58] code 400, message Bad request version ('\x91\x96\x17æIt/Û\x00*::\x13\x01\x13\x02\x13\x03À,À+Ì©À0À/Ì¨À')
+2024-08-20 12:29:58,221 - 127.0.0.1 - - [20/Aug/2024 12:29:58] "[35m[1m\x16\x03\x01\x02\x00\x01\x00\x01ü\x03\x03ßÕ\x8bÖs\x9e+]\x1c\x11p\x90ÂÕ\x10Ìë9`\x148\x1dÊ\\ç \x15\x08u«K\x01 2\x86\x9bµEÛëP9v¸O\x9d(V¨×9±ÀMY!\x85\x91\x96\x17æIt/Û\x00*::\x13\x01\x13\x02\x13\x03À,À+Ì©À0À/Ì¨À[0m" HTTPStatus.BAD_REQUEST -
+2024-08-20 12:29:58,222 - 127.0.0.1 - - [20/Aug/2024 12:29:58] code 400, message Bad request version ('z\x88\x00*\x1a\x1a\x13\x01\x13\x02\x13\x03À,À+Ì©À0À/Ì¨À')
+2024-08-20 12:29:58,222 - 127.0.0.1 - - [20/Aug/2024 12:29:58] "[35m[1m\x16\x03\x01\x02\x00\x01\x00\x01ü\x03\x03æ·./Ptà'Ú|\x943\x8d5P>\x9a\x96\x10u.\x8eÞ\x06\x04½Ç\x17\x13t\x8að \x11­\x03\x9ee\x09\x0c=\x9a©ô£ÂkC=kà³Bðt¬\x8b\x90Â¥\x83\x1a\x0bz\x88\x00*\x1a\x1a\x13\x01\x13\x02\x13\x03À,À+Ì©À0À/Ì¨À[0m" HTTPStatus.BAD_REQUEST -
+2024-08-20 12:29:58,224 - 127.0.0.1 - - [20/Aug/2024 12:29:58] code 400, message Bad request version ('8ö\x875¤âa±:ÝïP\x00oýå¡âc\x01Fx\xad\x00*ªª\x13\x01\x13\x02\x13\x03À,À+Ì©À0À/Ì¨À')
+2024-08-20 12:29:58,224 - 127.0.0.1 - - [20/Aug/2024 12:29:58] "[35m[1m\x16\x03\x01\x02\x00\x01\x00\x01ü\x03\x03°è\x07\x8dV\x09ò\x1a\x88¬5°¿!üã\x7f\x1bÇ\x8cåø\x12D\x11\x86õ¨Çg¼~ úó°úSIáI 8ö\x875¤âa±:ÝïP\x00oýå¡âc\x01Fx­\x00*ªª\x13\x01\x13\x02\x13\x03À,À+Ì©À0À/Ì¨À[0m" HTTPStatus.BAD_REQUEST -
+2024-08-20 12:29:58,225 - 127.0.0.1 - - [20/Aug/2024 12:29:58] code 400, message Bad request version ('¥\x00*\x8a\x8a\x13\x01\x13\x02\x13\x03À,À+Ì©À0À/Ì¨À')
+2024-08-20 12:29:58,225 - 127.0.0.1 - - [20/Aug/2024 12:29:58] "[35m[1m\x16\x03\x01\x02\x00\x01\x00\x01ü\x03\x03æàJÃ0"ü\x13ýÅÌøÂ\x96hÕú\x00}©îæ;¢\x9ftì\x87êv.þ e<\x99;·OÏ\x03SÕ\x01Èâ®%×\x08í\x1dI\x81Òq\x06\x87\x84\x0f0\x1c¹ ¥\x00*\x8a\x8a\x13\x01\x13\x02\x13\x03À,À+Ì©À0À/Ì¨À[0m" HTTPStatus.BAD_REQUEST -
+2024-08-20 12:30:03,028 - Exception on / [GET]
+Traceback (most recent call last):
+  File "/Users/paulcoleman/Documents/PersonalCode/PortfolioRender/.venv/lib/python3.9/site-packages/flask/app.py", line 1473, in wsgi_app
+    response = self.full_dispatch_request()
+  File "/Users/paulcoleman/Documents/PersonalCode/PortfolioRender/.venv/lib/python3.9/site-packages/flask/app.py", line 882, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "/Users/paulcoleman/Documents/PersonalCode/PortfolioRender/.venv/lib/python3.9/site-packages/flask/app.py", line 880, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/Users/paulcoleman/Documents/PersonalCode/PortfolioRender/.venv/lib/python3.9/site-packages/flask/app.py", line 865, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+  File "/Users/paulcoleman/Documents/PersonalCode/PortfolioRender/app.py", line 70, in index
+    return render_template('index.html')
+  File "/Users/paulcoleman/Documents/PersonalCode/PortfolioRender/.venv/lib/python3.9/site-packages/flask/templating.py", line 149, in render_template
+    template = app.jinja_env.get_or_select_template(template_name_or_list)
+  File "/Users/paulcoleman/Documents/PersonalCode/PortfolioRender/.venv/lib/python3.9/site-packages/jinja2/environment.py", line 1084, in get_or_select_template
+    return self.get_template(template_name_or_list, parent, globals)
+  File "/Users/paulcoleman/Documents/PersonalCode/PortfolioRender/.venv/lib/python3.9/site-packages/jinja2/environment.py", line 1013, in get_template
+    return self._load_template(name, globals)
+  File "/Users/paulcoleman/Documents/PersonalCode/PortfolioRender/.venv/lib/python3.9/site-packages/jinja2/environment.py", line 972, in _load_template
+    template = self.loader.load(self, name, self.make_globals(globals))
+  File "/Users/paulcoleman/Documents/PersonalCode/PortfolioRender/.venv/lib/python3.9/site-packages/jinja2/loaders.py", line 126, in load
+    source, filename, uptodate = self.get_source(environment, name)
+  File "/Users/paulcoleman/Documents/PersonalCode/PortfolioRender/.venv/lib/python3.9/site-packages/flask/templating.py", line 65, in get_source
+    return self._get_source_fast(environment, template)
+  File "/Users/paulcoleman/Documents/PersonalCode/PortfolioRender/.venv/lib/python3.9/site-packages/flask/templating.py", line 99, in _get_source_fast
+    raise TemplateNotFound(template)
+jinja2.exceptions.TemplateNotFound: index.html
+2024-08-20 12:30:03,038 - 127.0.0.1 - - [20/Aug/2024 12:30:03] "[35m[1mGET / HTTP/1.1[0m" 500 -
+2024-08-20 12:30:03,047 - 127.0.0.1 - - [20/Aug/2024 12:30:03] "[33mGET /apple-touch-icon-precomposed.png HTTP/1.1[0m" 404 -
+2024-08-20 12:30:03,048 - 127.0.0.1 - - [20/Aug/2024 12:30:03] "[33mGET /apple-touch-icon.png HTTP/1.1[0m" 404 -

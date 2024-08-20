@@ -313,5 +313,5 @@ def safe_redirect(endpoint):
 
 
 if __name__ == '__main__':
-    port = int(os.getenv('PORT', 5000))
+    port = int(os.getenv('PORT', 5000))  # Render provides the PORT variable; default to 5000 if not set
     app.run(host='0.0.0.0', port=port)
