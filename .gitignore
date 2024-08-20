@@ -6,3 +6,6 @@
 *.iml
 out
 gen
+
+*./instance
+./docs/chatbot.log
