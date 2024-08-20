@@ -10,7 +10,7 @@ $(document).ready(function() {
         }
 
         $.ajax({
-            url: '/.netlify/functions/chatbot-answer',
+            url: '{{ url_for("chatbot_answer") }}',
             type: 'POST',
             contentType: 'application/json',
             data: JSON.stringify({ question }),

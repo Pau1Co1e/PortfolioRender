@@ -70,18 +70,20 @@
         <h2 class="dark-mode-text">Estimated Fractal Dimension: {{ fractal_dimension }}</h2>
         <div class="image-container">
             <h3>Original Image</h3>
-            <img src="../uploads/{{ image_paths['original'] }}" alt="Original Image">
-            <h3>Grayscale Image</h3>
-            <img src="../uploads/{{ image_paths['grayscale']}}" alt="Grayscale Image">
-            <h3>Binary Image</h3>
-            <img src="../uploads/{{ image_paths['binary'] }}" alt="Binary Image">
-            <h3>Fractal Dimension Analysis</h3>
-            <img src="../uploads/{{ image_paths['analysis'] }}" alt="Fractal Dimension Analysis">
-        </div>
-        <a href="fractal.html">Calculate Another Image</a>
-        <a href="download.html" class="btn btn-primary">Download Report</a>
-    </main>
+            <img src="{{ url_for('static', filename='images/' + image_paths['original']) }}" alt="Original Image">
 
+            <h3>Grayscale Image</h3>
+            <img src="{{ url_for('static', filename='images/' + image_paths['grayscale']) }}" alt="Grayscale Image">
+
+            <h3>Binary Image</h3>
+            <img src="{{ url_for('static', filename='images/' + image_paths['binary']) }}" alt="Binary Image">
+
+            <h3>Fractal Dimension Analysis</h3>
+            <img src="{{ url_for('static', filename='images/' + image_paths['analysis']) }}" alt="Fractal Dimension Analysis">
+        </div>
+        <a href="{{ url_for('fractal') }}">Calculate Another Image</a>
+        <a href="{{ url_for('download') }}" class="btn btn-primary">Download Report</a>
+    </main>
     <footer class="bg-light text-center text-lg-start mt-5">
     <div class="container p-4">
         <div class="row">
