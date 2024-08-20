@@ -28,7 +28,7 @@ ALLOWED_REDIRECTS = {
 }
 
 app.secret_key = os.getenv('SECRET_KEY', 'default_secret_key')
-app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'static/uploads/')
+app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'uploads/')
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # Limit file size to 16MB
 app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'gif'}
 # Use DATABASE_URL environment variable if available, fallback to SQLite for local and Render environments

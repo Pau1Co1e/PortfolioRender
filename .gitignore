@@ -8,4 +8,5 @@ out
 gen
 
 *./instance
-./docs/chatbot.log
+static/docs/chatbot.log
+/instance/
