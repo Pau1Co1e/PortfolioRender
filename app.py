@@ -53,8 +53,6 @@ logger = logging.getLogger()
 freezer = Freezer(app)
 
 # Load BERT model for FAQ Chatbot
-faq_pipeline = pipeline("question-answering", model="distilbert-base-uncased-distilled-squad", device="mps")
-
 faq_pipeline = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
 
