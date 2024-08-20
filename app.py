@@ -45,7 +45,7 @@ csrf = CSRFProtect(app)
 db = SQLAlchemy(app)
 
 # Initialize logging
-logging.basicConfig(filename='public/docs/chatbot.log', level=logging.INFO, format='%(asctime)s - %(message)s')
+logging.basicConfig(filename='docs/chatbot.log', level=logging.INFO, format='%(asctime)s - %(message)s')
 logger = logging.getLogger()
 
 # Initialize the freezer for static site generation
