@@ -1,0 +1,15 @@
+Flask==3.0.3
+Flask-SQLAlchemy==3.1.1
+transformers==4.43.3
+numpy==1.26.4
+yfinance==0.2.41
+matplotlib==3.9.1
+pandas==2.2.2
+Pillow==10.4.0
+reportlab==4.2.2
+scikit-image==0.24.0
+scipy==1.13.1
+torch==2.4.0
+
+frozen-flask~=1.0.2
+werkzeug~=3.0.3

@@ -1,0 +1,265 @@
+/* General body styles for transitions between dark and light modes */
+body {
+    font-family: Arial, sans-serif;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+/* Dark mode styles */
+body.dark-mode {
+    background-color: #121212;
+    color: #ffffff;
+}
+
+/* Style for the form elements in both light and dark modes */
+.form-control {
+    background-color: #ffffff;
+    color: #000000;
+    border: 1px solid #ced4da;
+    transition: background-color 0.3s, color 0.3s, border-color 0.3s;
+}
+
+body.dark-mode .form-control {
+    background-color: #333333;
+    color: #ffffff;
+    border-color: #555555;
+}
+
+/* Ensure labels are visible in both modes */
+label {
+    color: #000000;
+    transition: color 0.3s;
+}
+
+body.dark-mode label {
+    color: #ffffff;
+}
+
+/* Style for the submit button */
+button.btn-primary {
+    background-color: #CC7722;
+    border-color: #CC7722;
+    color: #ffffff;
+    transition: background-color 0.3s, border-color 0.3s;
+}
+
+button.btn-primary:hover {
+    background-color: #a65d1a;
+    border-color: #a65d1a;
+}
+
+/* Dark mode styles for the navbar, footer, and other elements */
+nav,
+nav .navbar-brand,
+nav .nav-link,
+footer,
+a {
+    transition: background-color 0.3s, color 0.3s;
+}
+
+body.dark-mode nav,
+body.dark-mode footer {
+    background-color: #1e1e1e !important;
+}
+
+body.dark-mode a,
+body.dark-mode .text-dark {
+    color: #ffffff !important;
+}
+
+/* Dark mode for the navbar toggler icon */
+body.dark-mode .navbar-toggler-icon {
+    background-image: url("data:image/svg+xml;charset=utf8,%3Csvg viewBox='0 0 30 30' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath stroke='rgba(255, 255, 255, 0.75)' stroke-width='2' stroke-linecap='round' stroke-miterlimit='10' d='M4 7h22M4 15h22M4 23h22'/%3E%3C/svg%3E");
+}
+
+/* Loader styles */
+.loader {
+    border: 16px solid #f3f3f3;
+    border-top: 16px solid #CC7722;
+    border-radius: 50%;
+    width: 120px;
+    height: 120px;
+    animation: spin 2s linear infinite;
+    margin: 0 auto;
+    display: none;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@-webkit-keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Loading spinner for modal dialogs */
+#loading .spinner {
+    border: 8px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top: 8px solid #fff;
+    width: 60px;
+    height: 60px;
+    animation: spin 1s linear infinite;
+}
+
+/* Styles for hero section */
+.hero-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    text-align: center;
+    padding: 20px;
+}
+
+@media (min-width: 768px) {
+    .hero-section {
+        flex-direction: row;
+    }
+}
+
+.hero-image {
+    max-width: 100%;
+    height: auto;
+}
+
+.hero-text {
+    margin: 0 20px;
+    flex: 1;
+}
+
+.hero-title {
+    font-size: 2em;
+    font-weight: bold;
+    color: #000000;
+}
+
+.hero-title-orange {
+    font-size: 2em;
+    font-weight: bold;
+    color: #CC7722;
+}
+
+@media (min-width: 768px) {
+    .hero-title, .hero-title-orange {
+        font-size: 3em;
+    }
+}
+
+body.dark-mode .hero-title {
+    color: #ffffff !important;
+}
+
+.hero-subtitle {
+    font-size: 1.2em;
+    color: #777;
+}
+
+.hero-links {
+    margin-top: 20px;
+}
+
+.hero-links a {
+    margin: 0 10px;
+    font-size: 1.5em;
+    color: #333;
+    text-decoration: none;
+}
+
+.hero-links a:hover {
+    color: #CC7722;
+}
+
+/* Loading animation styles */
+#loading {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 9999;
+    justify-content: center;
+    align-items: center;
+    transition: opacity 0.3s;
+}
+
+#loading.loading-visible {
+    display: flex;
+    opacity: 1;
+}
+
+.resume-options {
+    margin-top: 20px;
+}
+
+.resume-options .btn {
+    margin: 5px;
+}
+
+.resume-view-btn {
+    background-color: #CC7722;
+    color: #fff;
+    border: none;
+    padding: 10px 20px;
+    font-size: 16px;
+    text-decoration: none;
+    border-radius: 5px;
+    transition: background-color 0.3s ease;
+}
+
+.resume-view-btn:hover {
+    background-color: #a65d1a;
+    color: #fff;
+}
+
+.resume-download-btn {
+    background-color: #6c757d;
+    color: #fff;
+    border: none;
+    padding: 10px 20px;
+    font-size: 16px;
+    text-decoration: none;
+    border-radius: 5px;
+    transition: background-color 0.3s ease;
+}
+
+.resume-download-btn:hover {
+    background-color: #5a6268;
+    color: #fff;
+}
+
+/* Style for Carousel Buttons */
+.carousel-control-prev-icon,
+.carousel-control-next-icon {
+    background-color: rgba(0, 0, 0, 0.5);
+    border-radius: 50%;
+    padding: 10px;
+}
+
+.carousel-control-prev-icon:hover,
+.carousel-control-next-icon:hover {
+    background-color: rgba(0, 0, 0, 0.7);
+}
+
+.carousel-control-prev,
+.carousel-control-next {
+    opacity: 0.8;
+}
+
+.carousel-control-prev:hover,
+.carousel-control-next:hover {
+    opacity: 1;
+}
+
+/* Optional: Highlighting indicators */
+.carousel-indicators [data-bs-target] {
+    background-color: #CC7722;
+}
+
+.carousel-indicators [data-bs-target].active {
+    background-color: #FF9900;
+}
