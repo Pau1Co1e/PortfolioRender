@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Fractal Result</title>
@@ -82,37 +81,50 @@
         <a href="fractal.html">Calculate Another Image</a>
         <a href="download.html" class="btn btn-primary">Download Report</a>
     </main>
+
     <footer class="bg-light text-center text-lg-start mt-5">
-        <div class="container p-4">
-            <div class="row">
-                <div class="col-lg-3 col-md-6 mb-4 mb-md-0">
-                    <h5 class="text-uppercase">Quick Links</h5>
-                    <ul class="list-unstyled mb-0">
-                        <li><a href="index.html" class="text-dark">Home</a></li>
-                        <li><a href="about_me.html" class="text-dark">About Me</a></li>
-                        <li><a href="experience.html" class="text-dark">Projects</a></li>
-                        <li><a href="contact_me.html" class="text-dark">Contact Me</a></li>
-                        <li><a href="download.html" class="text-dark">Downloads</a></li>
-                    </ul>
-                </div>
-                <div class="col-lg-3 col-md-6 mb-4 mb-md-0">
-                    <h5 class="text-uppercase">Follow Me</h5>
-                    <ul class="list-unstyled mb-0">
-                        <li><a href="https://www.linkedin.com/in/paulc88" class="text-dark">LinkedIn</a></li>
-                        <li><a href="https://colemantech.netlify.app" class="text-dark">Portfolio</a></li>
-                        <li><a href="https://github.com/Pau1Co1e/" class="text-dark">GitHub</a></li>
-                    </ul>
-                </div>
+    <div class="container p-4">
+        <div class="row">
+            <div class="col-lg-3 col-md-6 mb-4 mb-md-0">
+                <h5 class="text-uppercase">Quick Links</h5>
+
+                <ul class="list-unstyled mb-0">
+                    <li>
+                        <a class="nav-link {% if request.endpoint == 'index' %}active{% endif %}" aria-current="page" href="{{ url_for('index') }}">Home</a>
+                    </li>
+                    <li>
+                        <a class="nav-link {% if request.endpoint == 'about_me' %}active{% endif %}" href="{{ url_for('about_me') }}">About Me</a>
+                    </li>
+                    <li>
+                        <a class="nav-link {% if request.endpoint == 'projects' %}active{% endif %}" href="{{ url_for('projects') }}">Projects</a>
+                    </li>
+                    <li>
+                        <a class="nav-link {% if request.endpoint == 'contact_me' %}active{% endif %}" href="{{ url_for('contact_me') }}">Contact Me</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'download' %}active{% endif %}" href="{{ url_for('download') }}">Downloads</a>
+                    </li>
+                </ul>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-4 mb-md-0">
+                <h5 class="text-uppercase">Follow Me</h5>
+                <ul class="list-unstyled mb-0">
+                    <li><a href="https://www.linkedin.com/in/paulc88" class="text-dark">LinkedIn</a></li>
+                    <li><a href="https://colemantech.netlify.app" class="text-dark">Portfolio</a></li>
+                    <li><a href="https://github.com/Pau1Co1e/" class="text-dark">GitHub</a></li>
+                </ul>
             </div>
         </div>
-        <div class="text-center p-3" style="background-color: rgba(0, 0, 0, 0.2);">
-            © 2024 Paul Coleman. All rights reserved.
-        </div>
-    </footer>
+    </div>
+    <div class="text-center p-3" style="background-color: rgba(0, 0, 0, 0.2);">
+        © 2024 Paul Coleman. All rights reserved.
+    </div>
+
+</footer>
     <script src="https://code.jquery.com/jquery-3.7.1" integrity="sha384-1H217gwSVyLSIfaLxHbE7dRb3v4mYCKbpQvzx0cegeju1MVsGrX5xXxAvs/HgeFs" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.10.2/dist/umd/popper.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="../static/js/script.min.js"></script>
+    <script src="{{ url_for('static', filename='js/script.min.js') }}"></script>
     <script>
         document.addEventListener("DOMContentLoaded", function () {
             const darkModeToggle = document.getElementById('darkModeToggle');
@@ -132,44 +144,4 @@
         });
     </script>
 </body>
-<footer class="bg-light text-center text-lg-start mt-5">
-    <div class="container p-4">
-        <div class="row">
-            <div class="col-lg-3 col-md-6 mb-4 mb-md-0">
-                <h5 class="text-uppercase">Quick Links</h5>
-
-                <ul class="list-unstyled mb-0">
-                    <li>
-                        <a class="nav-link {% if request.endpoint == 'index' %}active{% endif %}" aria-current="page" href="index.html">Home</a>
-                    </li>
-                    <li>
-                        <a class="nav-link {% if request.endpoint == 'about_me' %}active{% endif %}" href="about_me.html">About Me</a>
-                    </li>
-                    <li>
-                        <a class="nav-link {% if request.endpoint == 'projects' %}active{% endif %}" href="experience.html">Projects</a>
-                    </li>
-                    <li>
-                        <a class="nav-link {% if request.endpoint == 'contact_me' %}active{% endif %}" href="contact_me.html">Contact Me</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'download' %}active{% endif %}" href="download.html">Downloads</a>
-                    </li>
-                </ul>
-            </div>
-            <div class="col-lg-3 col-md-6 mb-4 mb-md-0">
-                <h5 class="text-uppercase">Follow Me</h5>
-                <ul class="list-unstyled mb-0">
-                    <li><a href="https://www.linkedin.com/in/paulc88" class="text-dark">LinkedIn</a></li>
-                    <li><a href="https://colemantech.netlify.app" class="text-dark">Portfolio</a></li>
-                    <li><a href="https://github.com/Pau1Co1e/" class="text-dark">GitHub</a></li>
-                </ul>
-            </div>
-        </div>
-    </div>
-    <div class="text-center p-3" style="background-color: rgba(0, 0, 0, 0.2);">
-        © 2024 Paul Coleman. All rights reserved.
-    </div>
-
-</footer>
-
 </html>
