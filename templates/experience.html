@@ -29,8 +29,7 @@
                         <a class="nav-link {% if request.endpoint == 'about_me' %}active{% endif %}" href="{{ url_for('about_me') }}">About Me</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'projects' %}active{% endif %}" href="{{ url_for('projects') }}">Projects</a>
-                    </li>
+                        <a class="nav-link {% if request.endpoint == 'experience' %}active{% endif %}" href="{{ url_for('experience') }}">Projects</a>                    </li>
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'contact_me' %}active{% endif %}" href="{{ url_for('contact_me') }}">Contact Me</a>
                     </li>
@@ -148,10 +147,12 @@
                 <div class="card-body">
                     <h5 class="card-title-orange">AI Chatbot</h5>
                     <form id="chatbot-form" method="post">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <label for="question">Ask me what you'd like to know about Paul:</label>
                         <input type="text" id="question" name="question" class="form-control" required>
                         <button type="submit" class="btn btn-primary mt-3">Ask</button>
                     </form>
+
                     <div id="answer" class="mt-4"></div>
                     <p class="card-text mt-3">This AI chatbot interacts with users in real-time to answer questions about me.</p>
                     <ul>
@@ -180,8 +181,7 @@
                         <a class="nav-link {% if request.endpoint == 'about_me' %}active{% endif %}" href="{{ url_for('about_me') }}">About Me</a>
                     </li>
                     <li>
-                        <a class="nav-link {% if request.endpoint == 'projects' %}active{% endif %}" href="{{ url_for('projects') }}">Projects</a>
-                    </li>
+                        <a class="nav-link {% if request.endpoint == 'experience' %}active{% endif %}" href="{{ url_for('experience') }}">Projects</a>                    </li>
                     <li>
                         <a class="nav-link {% if request.endpoint == 'contact_me' %}active{% endif %}" href="{{ url_for('contact_me') }}">Contact Me</a>
                     </li>
