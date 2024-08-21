@@ -157,6 +157,11 @@ def download_report():
     return send_file(pdf_path, as_attachment=True)
 
 
+@app.errorhandler(400)
+def bad_request(error):
+    return "Bad Request!", 400, error
+
+
 @app.errorhandler(CSRFError)
 def handle_csrf_error(e):
     return render_template('csrf_error.html', reason=e.description), 400
