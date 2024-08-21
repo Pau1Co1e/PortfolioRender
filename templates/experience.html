@@ -147,7 +147,7 @@
                 <div class="card-body">
                     <h5 class="card-title-orange">AI Chatbot</h5>
                     <form method="POST" action="{{ url_for('experience') }}">
-                        {{ form.hidden_tag() }}  <!-- CSRF token inclusion -->
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <div class="form-group">
                             <label for="question">Ask a question:</label>
                             <input type="text" id="question" name="question" class="form-control" required>
