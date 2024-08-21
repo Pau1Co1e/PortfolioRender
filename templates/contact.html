@@ -23,7 +23,7 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav">
                     <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'index' %}active{% endif %}" aria-current="page" href="{{ url_for('index') }}">Home</a>
+                        <a class="nav-link {% if request.endpoint == 'index' %}active{% endif %}" href="{{ url_for('index') }}">Home</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'about_me' %}active{% endif %}" href="{{ url_for('about_me') }}">About Me</a>
@@ -31,7 +31,7 @@
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'experience' %}active{% endif %}" href="{{ url_for('experience') }}">Projects</a>                    </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'contact_me' %}active{% endif %}" href="{{ url_for('contact_me') }}">Contact Me</a>
+                        <a class="nav-link {% if request.endpoint == 'contact' %}active{% endif %}" aria-current="page" href="{{ url_for('contact') }}">Contact Me</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'download' %}active{% endif %}" href="{{ url_for('download') }}">Downloads</a>
@@ -52,7 +52,7 @@
             <!-- Embed the Google Form here -->
             <div class="form-container mt-4">
                 <form name="contact" method="POST">
-                    <input type="hidden" name="csrf_token" value="{{ form.hidden_tag() }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
                     <p>
                         <label>Your Name: <input type="text" name="name" class="form-control" required /></label>
@@ -79,15 +79,16 @@
 
                 <ul class="list-unstyled mb-0">
                     <li>
-                        <a class="nav-link {% if request.endpoint == 'index' %}active{% endif %}" aria-current="page" href="{{ url_for('index') }}">Home</a>
+                        <a class="nav-link {% if request.endpoint == 'index' %}active{% endif %}" href="{{ url_for('index') }}">Home</a>
                     </li>
                     <li>
                         <a class="nav-link {% if request.endpoint == 'about_me' %}active{% endif %}" href="{{ url_for('about_me') }}">About Me</a>
                     </li>
                     <li>
-                        <a class="nav-link {% if request.endpoint == 'experience' %}active{% endif %}" href="{{ url_for('experience') }}">Projects</a>                    </li>
+                        <a class="nav-link {% if request.endpoint == 'experience' %}active{% endif %}" href="{{ url_for('experience') }}">Projects</a>
+                    </li>
                     <li>
-                        <a class="nav-link {% if request.endpoint == 'contact_me' %}active{% endif %}" href="{{ url_for('contact_me') }}">Contact Me</a>
+                        <a class="nav-link {% if request.endpoint == 'contact' %}active{% endif %}" aria-current="page" href="{{ url_for('contact') }}">Contact Me</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'download' %}active{% endif %}" href="{{ url_for('download') }}">Downloads</a>

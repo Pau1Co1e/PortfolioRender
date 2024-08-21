@@ -31,7 +31,7 @@
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'experience' %}active{% endif %}" href="{{ url_for('experience') }}">Projects</a>                    </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'contact_me' %}active{% endif %}" href="{{ url_for('contact_me') }}">Contact Me</a>
+                        <a class="nav-link {% if request.endpoint == 'contact' %}active{% endif %}" href="{{ url_for('contact') }}">Contact Me</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'download' %}active{% endif %}" href="{{ url_for('download') }}">Downloads</a>
@@ -74,7 +74,7 @@
                     <li>
                         <a class="nav-link {% if request.endpoint == 'experience' %}active{% endif %}" href="{{ url_for('experience') }}">Projects</a>                    </li>
                     <li>
-                        <a class="nav-link {% if request.endpoint == 'contact_me' %}active{% endif %}" href="{{ url_for('contact_me') }}">Contact Me</a>
+                        <a class="nav-link {% if request.endpoint == 'contact' %}active{% endif %}" href="{{ url_for('contact') }}">Contact Me</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'download' %}active{% endif %}" href="{{ url_for('download') }}">Downloads</a>
