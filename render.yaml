@@ -2,3 +2,4 @@ services:
   - type: web
     name: my-web-service
     buildCommand: pip install -r requirements.txt
+    startCommand: "gunicorn --timeout 120 app:app"
