@@ -30,7 +30,7 @@
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'experience' %}active{% endif %}" href="{{ url_for('experience') }}">Projects</a>                    </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'contact_me' %}active{% endif %}" href="{{ url_for('contact_me') }}">Contact Me</a>
+                        <a class="nav-link {% if request.endpoint == 'contact' %}active{% endif %}" href="{{ url_for('contact') }}">Contact Me</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'download' %}active{% endif %}" href="{{ url_for('download') }}">Downloads</a>
@@ -49,7 +49,7 @@
 <body>
     <h1>Financial Analysis Tool</h1>
     <form id="financial-form">
-        <input type="hidden" name="csrf_token" value="{{ form.hidden_tag() }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <label for="symbol">Enter stock symbol:</label>
         <input type="text" id="symbol" name="symbol">
         <button type="submit">Project</button>
@@ -75,7 +75,7 @@
                     <li>
                         <a class="nav-link {% if request.endpoint == 'experience' %}active{% endif %}" href="{{ url_for('experience') }}">Projects</a>                    </li>
                     <li>
-                        <a class="nav-link {% if request.endpoint == 'contact_me' %}active{% endif %}" href="{{ url_for('contact_me') }}">Contact Me</a>
+                        <a class="nav-link {% if request.endpoint == 'contact' %}active{% endif %}" href="{{ url_for('contact') }}">Contact Me</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'download' %}active{% endif %}" href="{{ url_for('download') }}">Downloads</a>

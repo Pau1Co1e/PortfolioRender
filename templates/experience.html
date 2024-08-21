@@ -31,7 +31,7 @@
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'experience' %}active{% endif %}" href="{{ url_for('experience') }}">Projects</a>                    </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'contact_me' %}active{% endif %}" href="{{ url_for('contact_me') }}">Contact Me</a>
+                        <a class="nav-link {% if request.endpoint == 'contact' %}active{% endif %}" href="{{ url_for('contact') }}">Contact Me</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'download' %}active{% endif %}" href="{{ url_for('download') }}">Downloads</a>
@@ -56,7 +56,8 @@
                 <div class="card-body">
                     <h5 class="card-title-orange">Humanoid Robotics</h5>
                     <video width="100%" height="auto" controls>
-                        <source src="{{ url_for('static', filename='images/robot_film.mp4') }}" type="video/mp4">
+                        <source src="{{ url_for('static', filename='images/robot_film.mp4') }}" type="video/mp4" class="img-fluid rounded-circle">
+
                         Your browser does not support the video tag.
                     </video>
                     <p class="card-text">Developed software for humanoid robots capable of performing complex tasks autonomously.</p>
@@ -66,6 +67,36 @@
                         <li>Outcomes: Successfully developed robots that can navigate and interact with their environment. Starred in a promotional film with the robot.</li>
                     </ul>
                     <div><p>If the video above doesn't play, you can <a href="{{ url_for('static', filename='images/robot_film.mp4') }}" class="btn btn-primary mt-3 btn-primary:hover" download>download it here.</a></p></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- AI Chatbot Project Card -->
+        <div class="col-lg-4 col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title-orange">AI Chatbot</h5>
+                    <iframe src="{{ url_for('chatbot') }}" class="card-img-top" width="100%" height="400"></iframe>
+
+
+                    <div id="answer" class="mt-4">
+                        <!-- Displaying Flash Messages -->
+                        {% with messages = get_flashed_messages(with_categories=True) %}
+                          {% if messages %}
+                            <ul class="flashes">
+                              {% for category, message in messages %}
+                                <li class="{{ category }}">{{ message }}</li>
+                              {% endfor %}
+                            </ul>
+                          {% endif %}
+                        {% endwith %}
+                    </div>
+                    <p class="card-text mt-3">This AI chatbot interacts with users in real-time to answer questions about me.</p>
+                    <ul>
+                        <li>Technologies Used: PyTorch, Transformers, BERT, Flask</li>
+                        <li>Challenges: Real-time response and natural language processing</li>
+                        <li>Outcomes: Created a chatbot capable of understanding and responding to various user queries.</li>
+                    </ul>
                 </div>
             </div>
         </div>
@@ -141,36 +172,6 @@
             </div>
         </div>
 
-        <!-- AI Chatbot Project Card -->
-        <div class="col-lg-4 col-md-6 mb-4">
-            <div class="card h-100">
-                <div class="card-body">
-                    <h5 class="card-title-orange">AI Chatbot</h5>
-                    <iframe src="{{ url_for('chatbot') }}" class="card-img-top" width="100%" height="400"></iframe>
-
-
-                    <div id="answer" class="mt-4">
-                        <!-- Displaying Flash Messages -->
-                        {% with messages = get_flashed_messages(with_categories=True) %}
-                          {% if messages %}
-                            <ul class="flashes">
-                              {% for category, message in messages %}
-                                <li class="{{ category }}">{{ message }}</li>
-                              {% endfor %}
-                            </ul>
-                          {% endif %}
-                        {% endwith %}
-                    </div>
-                    <p class="card-text mt-3">This AI chatbot interacts with users in real-time to answer questions about me.</p>
-                    <ul>
-                        <li>Technologies Used: PyTorch, Transformers, BERT, Flask</li>
-                        <li>Challenges: Real-time response and natural language processing</li>
-                        <li>Outcomes: Created a chatbot capable of understanding and responding to various user queries.</li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-
     </div>
 </div>
 
@@ -190,7 +191,7 @@
                     <li>
                         <a class="nav-link {% if request.endpoint == 'experience' %}active{% endif %}" href="{{ url_for('experience') }}">Projects</a>                    </li>
                     <li>
-                        <a class="nav-link {% if request.endpoint == 'contact_me' %}active{% endif %}" href="{{ url_for('contact_me') }}">Contact Me</a>
+                        <a class="nav-link {% if request.endpoint == 'contact' %}active{% endif %}" href="{{ url_for('contact') }}">Contact Me</a>
                     </li>
                     <li>
                         <a class="nav-link {% if request.endpoint == 'download' %}active{% endif %}" href="{{ url_for('download') }}">Downloads</a>
