@@ -1,0 +1,4 @@
+services:
+  - type: web
+    name: my-web-service
+    buildCommand: pip install -r requirements.txt

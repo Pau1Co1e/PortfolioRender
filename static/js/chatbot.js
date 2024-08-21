@@ -1,4 +1,14 @@
 $(document).ready(function() {
+    var csrf_token = "{{ csrf_token() }}";
+    // Set up CSRF token for all AJAX requests
+    $.ajaxSetup({
+        beforeSend: function(xhr, settings) {
+            if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
+                xhr.setRequestHeader("X-CSRFToken", csrf_token);
+            }
+        }
+    });
+
     // Handle form submission for the chatbot
     $('#chatbot-form').on('submit', function(event) {
         event.preventDefault(); // Prevent the form from submitting normally
@@ -10,7 +20,7 @@ $(document).ready(function() {
         }
 
         $.ajax({
-            url: '/.netlify/functions/chatbot-answer',
+            url: '/chatbot-answer',
             type: 'POST',
             contentType: 'application/json',
             data: JSON.stringify({ question }),
