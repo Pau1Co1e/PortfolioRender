@@ -12,45 +12,22 @@ $('form').on('submit', function(event) {
     formData.append('file', file);
 
     $.ajax({
-        url: '/.fractalreport',  // Ensure this is pointing to your Netlify function
+        url: '/fractalreport',
         type: 'POST',
         data: formData,
-        contentType: false,  // Let jQuery handle the content type
-        processData: false,  // Don't process the data
+        contentType: false,
+        processData: false,
         success: function(response) {
-            console.log("Raw response:", response);
-            const data = typeof response === "string" ? JSON.parse(response) : response;
-            console.log("Parsed data:", data);
-            if (data.fractalDimension !== undefined) {
-                console.log(this.success)
-                alert("Fractal Dimension: " + data.fractalDimension);
+            if (response.fractalDimension !== undefined) {
+                // Redirect to the results page with parameters
+                window.location.href = `/fractal_result?fractal_dimension=${response.fractalDimension}&original=${response.image_paths.original}&grayscale=${response.image_paths.grayscale}&binary=${response.image_paths.binary}&analysis=${response.image_paths.analysis}`;
             } else {
-                console.error("Fractal Dimension is undefined");
                 alert("Error: Fractal Dimension is undefined.");
             }
         },
         error: function(xhr, status, error) {
-            $('#loading-spinner').hide();
-            console.error("Status: " + status);
-            console.error("Error: " + error);
-            console.error("Response Text: " + xhr.responseText);
+            console.error("Error calculating fractal dimension.");
             alert("Error calculating fractal dimension.");
         }
-    });
-});
-document.addEventListener("DOMContentLoaded", function () {
-    const darkModeToggle = document.getElementById('darkModeToggle');
-    const body = document.body;
-    const textElements = document.querySelectorAll('.dark-mode-text');
-
-    darkModeToggle.addEventListener('click', function () {
-        body.classList.toggle('dark-mode');
-        textElements.forEach(element => {
-            if (body.classList.contains('dark-mode')) {
-                element.style.color = '#f3f3f3';
-            } else {
-                element.style.color = '#000000';
-            }
-        });
     });
 });

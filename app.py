@@ -22,7 +22,7 @@ ALLOWED_REDIRECTS = {
     'index': 'index',
     'about_me': 'about_me',
     'experience': 'experience',
-    'contact_me': 'contact_me',
+    'contact': 'contact',
     'download': 'download',
     'csrf_error': 'csrf_error',
     'fractal_result': 'fractal_result',
@@ -88,6 +88,38 @@ def index():
     return render_template('index.html')
 
 
+@app.route('/about_me')
+def about_me():
+    return render_template('about_me.html')
+
+
+@app.route('/contact', methods=['GET', 'POST'])
+def contact():
+    if request.method == 'POST':
+        # Process the form data
+        name = request.form.get('name')
+        email = request.form.get('email')
+        message = request.form.get('message')
+
+        # Example: Send the data to an email or save it to a database
+        # Implement your logic here
+
+        flash('Your message has been sent successfully!', 'success')
+        return redirect(url_for('contact'))
+
+    # If GET request, simply render the form
+    return render_template('contact.html')
+
+@app.route('/download')
+def download():
+    return render_template('download.html')
+
+
+@app.route('/experience', methods=['GET', 'POST'])
+def experience():
+    return render_template('experience.html')
+
+
 @app.route('/chatbot')
 def chatbot():
     session['visit_time'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -124,50 +156,6 @@ def chatbot_answer():
     except Exception as e:
         logger.error(f"Error processing question: {str(e)}")
         return jsonify({"error": "An error occurred while processing your question"}), 500
-
-
-@app.route('/about_me')
-def about_me():
-    return render_template('about_me.html')
-
-
-@app.route('/contact_me')
-def contact_me():
-    return render_template('contact_me.html')
-
-
-@app.route('/download')
-def download():
-    return render_template('download.html')
-
-
-@app.route('/experience', methods=['GET', 'POST'])
-def experience():
-    # if request.method == 'POST':
-    #     question = request.form.get('question')
-    #     if not question:
-    #         flash('Please enter a question.', 'warning')
-    #         return redirect(url_for('experience'))
-    #
-    #     try:
-    #         # Use the FAQ pipeline model to get an answer
-    #         context = (
-    #             "My name is Paul Coleman. I am an AI and ML Engineer focused on "
-    #             "building innovative solutions in Artificial Intelligence and Machine Learning. "
-    #             "Feel free to ask about my projects, experience, or anything AI/ML related."
-    #         )
-    #         result = faq_pipeline(question=question, context=context)
-    #         answer = result.get('answer', 'Sorry, I could not find an answer.')
-    #
-    #         # Flash the answer or send it to the template for display
-    #         flash(f'Answer: {answer}', 'success')
-    #     except Exception as e:
-    #         logger.error(f"Error processing question: {str(e)}")
-    #         flash('An error occurred while processing your question. Please try again.', 'danger')
-    #
-    #     return redirect(url_for('experience'))
-
-    return render_template('experience.html')
 
 
 @app.route('/download_report')
