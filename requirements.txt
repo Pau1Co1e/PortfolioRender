@@ -13,5 +13,4 @@ scipy==1.13.1
 torch==2.4.0
 frozen-flask~=1.0.2
 werkzeug~=3.0.3
-gunicorn
-flask-cors
+gunicorn==23.0.0
