@@ -29,7 +29,7 @@ ALLOWED_REDIRECTS = {
     'fractal': 'fractal',
     'chatbot': 'chatbot',
     'upload': 'upload',
-    'financial': 'financial',
+    'financial': 'financial'
 }
 
 # App settings
@@ -47,6 +47,8 @@ app.config.update(
 
 # Initialize extensions
 csrf = CSRFProtect(app)
+
+# Initialize database
 db = SQLAlchemy(app)
 
 # Initialize logging
@@ -98,11 +100,16 @@ def chatbot():
 def chatbot_answer():
     try:
         data = request.get_json()
+        logger.info(f"Received data: {data}")
+
         if not data:
+            logger.warning(f"No JSON data received")
             return jsonify({"error": "No data received"}), 400
 
         question = data.get('question')
+
         if not question:
+            logger.warning(f"Empty question received")
             return jsonify({"error": "No question provided"}), 400
 
         context = (
@@ -136,29 +143,29 @@ def download():
 
 @app.route('/experience', methods=['GET', 'POST'])
 def experience():
-    if request.method == 'POST':
-        question = request.form.get('question')
-        if not question:
-            flash('Please enter a question.', 'warning')
-            return redirect(url_for('experience'))
-
-        try:
-            # Use the FAQ pipeline model to get an answer
-            context = (
-                "My name is Paul Coleman. I am an AI and ML Engineer focused on "
-                "building innovative solutions in Artificial Intelligence and Machine Learning. "
-                "Feel free to ask about my projects, experience, or anything AI/ML related."
-            )
-            result = faq_pipeline(question=question, context=context)
-            answer = result.get('answer', 'Sorry, I could not find an answer.')
-
-            # Flash the answer or send it to the template for display
-            flash(f'Answer: {answer}', 'success')
-        except Exception as e:
-            logger.error(f"Error processing question: {str(e)}")
-            flash('An error occurred while processing your question. Please try again.', 'danger')
-
-        return redirect(url_for('experience'))
+    # if request.method == 'POST':
+    #     question = request.form.get('question')
+    #     if not question:
+    #         flash('Please enter a question.', 'warning')
+    #         return redirect(url_for('experience'))
+    #
+    #     try:
+    #         # Use the FAQ pipeline model to get an answer
+    #         context = (
+    #             "My name is Paul Coleman. I am an AI and ML Engineer focused on "
+    #             "building innovative solutions in Artificial Intelligence and Machine Learning. "
+    #             "Feel free to ask about my projects, experience, or anything AI/ML related."
+    #         )
+    #         result = faq_pipeline(question=question, context=context)
+    #         answer = result.get('answer', 'Sorry, I could not find an answer.')
+    #
+    #         # Flash the answer or send it to the template for display
+    #         flash(f'Answer: {answer}', 'success')
+    #     except Exception as e:
+    #         logger.error(f"Error processing question: {str(e)}")
+    #         flash('An error occurred while processing your question. Please try again.', 'danger')
+    #
+    #     return redirect(url_for('experience'))
 
     return render_template('experience.html')
 
