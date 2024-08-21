@@ -11,30 +11,46 @@ $('form').on('submit', function(event) {
     const formData = new FormData();
     formData.append('file', file);
 
-$.ajax({
-    url: '/.fractalreport',  // Ensure this is pointing to your Netlify function
-    type: 'POST',
-    data: formData,
-    contentType: false,  // Let jQuery handle the content type
-    processData: false,  // Don't process the data
-    success: function(response) {
-        console.log("Raw response:", response);
-        const data = typeof response === "string" ? JSON.parse(response) : response;
-        console.log("Parsed data:", data);
-        if (data.fractalDimension !== undefined) {
-            console.log(this.success)
-            alert("Fractal Dimension: " + data.fractalDimension);
-        } else {
-            console.error("Fractal Dimension is undefined");
-            alert("Error: Fractal Dimension is undefined.");
+    $.ajax({
+        url: '/.fractalreport',  // Ensure this is pointing to your Netlify function
+        type: 'POST',
+        data: formData,
+        contentType: false,  // Let jQuery handle the content type
+        processData: false,  // Don't process the data
+        success: function(response) {
+            console.log("Raw response:", response);
+            const data = typeof response === "string" ? JSON.parse(response) : response;
+            console.log("Parsed data:", data);
+            if (data.fractalDimension !== undefined) {
+                console.log(this.success)
+                alert("Fractal Dimension: " + data.fractalDimension);
+            } else {
+                console.error("Fractal Dimension is undefined");
+                alert("Error: Fractal Dimension is undefined.");
+            }
+        },
+        error: function(xhr, status, error) {
+            $('#loading-spinner').hide();
+            console.error("Status: " + status);
+            console.error("Error: " + error);
+            console.error("Response Text: " + xhr.responseText);
+            alert("Error calculating fractal dimension.");
         }
-    },
-    error: function(xhr, status, error) {
-        $('#loading-spinner').hide();
-        console.error("Status: " + status);
-        console.error("Error: " + error);
-        console.error("Response Text: " + xhr.responseText);
-        alert("Error calculating fractal dimension.");
-    }
+    });
 });
+document.addEventListener("DOMContentLoaded", function () {
+    const darkModeToggle = document.getElementById('darkModeToggle');
+    const body = document.body;
+    const textElements = document.querySelectorAll('.dark-mode-text');
+
+    darkModeToggle.addEventListener('click', function () {
+        body.classList.toggle('dark-mode');
+        textElements.forEach(element => {
+            if (body.classList.contains('dark-mode')) {
+                element.style.color = '#f3f3f3';
+            } else {
+                element.style.color = '#000000';
+            }
+        });
+    });
 });

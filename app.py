@@ -1,11 +1,11 @@
 import os
 import datetime
+import logging
 import numpy as np
 from PIL import Image
-import logging
 from flask import Flask, render_template, request, jsonify, flash, redirect, url_for, send_file, session
 from flask_sqlalchemy import SQLAlchemy
-from flask_wtf.csrf import CSRFError
+from flask_wtf.csrf import CSRFProtect, CSRFError
 from matplotlib import pyplot as plt
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
@@ -13,7 +13,6 @@ from scipy.stats import linregress
 from skimage.color import rgb2gray
 from transformers import pipeline
 from werkzeug.utils import secure_filename
-from flask_wtf import csrf
 
 # Flask app configuration
 app = Flask(__name__)
@@ -35,16 +34,19 @@ ALLOWED_REDIRECTS = {
 
 # App settings
 app.secret_key = os.getenv('SECRET_KEY', 'your_default_secret_key')
-app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'uploads/')
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # Limit file size to 16MB
-app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'gif'}
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///site.db')
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SESSION_COOKIE_SECURE'] = True  # Set to True if using HTTPS in production
-app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config.update(
+    UPLOAD_FOLDER=os.path.join(app.root_path, 'uploads/'),
+    MAX_CONTENT_LENGTH=16 * 1024 * 1024,  # Limit file size to 16MB
+    ALLOWED_EXTENSIONS={'png', 'jpg', 'jpeg', 'gif', 'svg'},
+    SQLALCHEMY_DATABASE_URI=os.getenv('DATABASE_URL', 'sqlite:///site.db'),
+    SQLALCHEMY_TRACK_MODIFICATIONS=False,
+    SESSION_COOKIE_SECURE=True,  # Set to True if using HTTPS in production
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax',
+)
 
-csrf = csrf.CSRFProtect(app)
+# Initialize extensions
+csrf = CSRFProtect(app)
 db = SQLAlchemy(app)
 
 # Initialize logging
@@ -63,7 +65,7 @@ def create_tables():
 @app.after_request
 def add_cors_headers(response):
     """Manually add CORS headers to the response."""
-    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Origin'] = 'https://portfoliorender-p89i.onrender.com'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
     return response
@@ -135,8 +137,29 @@ def download():
 @app.route('/experience', methods=['GET', 'POST'])
 def experience():
     if request.method == 'POST':
-        # Handle the POST request here (e.g., form submission)
-        pass
+        question = request.form.get('question')
+        if not question:
+            flash('Please enter a question.', 'warning')
+            return redirect(url_for('experience'))
+
+        try:
+            # Use the FAQ pipeline model to get an answer
+            context = (
+                "My name is Paul Coleman. I am an AI and ML Engineer focused on "
+                "building innovative solutions in Artificial Intelligence and Machine Learning. "
+                "Feel free to ask about my projects, experience, or anything AI/ML related."
+            )
+            result = faq_pipeline(question=question, context=context)
+            answer = result.get('answer', 'Sorry, I could not find an answer.')
+
+            # Flash the answer or send it to the template for display
+            flash(f'Answer: {answer}', 'success')
+        except Exception as e:
+            logger.error(f"Error processing question: {str(e)}")
+            flash('An error occurred while processing your question. Please try again.', 'danger')
+
+        return redirect(url_for('experience'))
+
     return render_template('experience.html')
 
 
@@ -163,8 +186,8 @@ def download_report():
 def fractal():
     if request.method == 'POST':
         try:
-            file = validate_and_save_file(request)
-            fractal_dimension, image_paths = calculate_fractal_dimension(file)
+            file_path = validate_and_save_file(request)
+            fractal_dimension, image_paths = calculate_fractal_dimension(file_path)
             return render_template('fractal_result.html', fractal_dimension=fractal_dimension, image_paths=image_paths)
         except ValueError as e:
             logger.error(f'Error processing image: {e}')
@@ -174,16 +197,16 @@ def fractal():
     return render_template('fractal.html')
 
 
-def validate_and_save_file(requests):
+def validate_and_save_file(request):
     """Validate the uploaded file and save it to the configured upload folder."""
-    if 'file' not in requests.files:
+    if 'file' not in request.files:
         raise ValueError('No file part')
 
-    file = requests.files['file']
+    file = request.files['file']
     if file.filename == '':
         raise ValueError('No selected file')
 
-    if not (file and allowed_file(file.filename)):
+    if not allowed_file(file.filename):
         raise ValueError('Invalid file format')
 
     filename = secure_filename(file.filename)

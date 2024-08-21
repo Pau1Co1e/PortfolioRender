@@ -1,4 +1,14 @@
 $(document).ready(function() {
+    var csrf_token = "{{ csrf_token() }}";
+    // Set up CSRF token for all AJAX requests
+    $.ajaxSetup({
+        beforeSend: function(xhr, settings) {
+            if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
+                xhr.setRequestHeader("X-CSRFToken", csrf_token);
+            }
+        }
+    });
+
     // Handle form submission for the chatbot
     $('#chatbot-form').on('submit', function(event) {
         event.preventDefault(); // Prevent the form from submitting normally
@@ -13,9 +23,6 @@ $(document).ready(function() {
             url: '/chatbot-answer',
             type: 'POST',
             contentType: 'application/json',
-            headers: {
-                'X-CSRFToken': '{{ csrf_token() }}'
-            },
             data: JSON.stringify({ question }),
             success: function(response) {
                 $('#answer').html(`<p>${response.answer}</p>`);
