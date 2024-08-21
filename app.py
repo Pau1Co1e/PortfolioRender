@@ -13,7 +13,6 @@ from scipy.stats import linregress
 from skimage.color import rgb2gray
 from transformers import pipeline
 from werkzeug.utils import secure_filename
-from flask_cors import CORS
 from flask_wtf import csrf
 
 # Flask app configuration
@@ -45,7 +44,6 @@ app.config['SESSION_COOKIE_SECURE'] = True  # Set to True if using HTTPS in prod
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
-CORS(app)
 csrf = csrf.CSRFProtect(app)
 db = SQLAlchemy(app)
 
@@ -60,6 +58,15 @@ faq_pipeline = pipeline("question-answering", model="distilbert-base-cased-disti
 @app.before_request
 def create_tables():
     db.create_all()
+
+
+@app.after_request
+def add_cors_headers(response):
+    """Manually add CORS headers to the response."""
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+    return response
 
 
 @app.errorhandler(400)
