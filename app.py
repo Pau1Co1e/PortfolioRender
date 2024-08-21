@@ -5,7 +5,7 @@ from PIL import Image
 import logging
 from flask import Flask, render_template, request, jsonify, flash, redirect, url_for, send_file, session
 from flask_sqlalchemy import SQLAlchemy
-from flask_wtf.csrf import CSRFProtect, CSRFError
+from flask_wtf.csrf import CSRFError
 from matplotlib import pyplot as plt
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
@@ -14,21 +14,33 @@ from skimage.color import rgb2gray
 from transformers import pipeline
 from werkzeug.utils import secure_filename
 from flask_cors import CORS
+from flask_wtf.csrf import CSRFProtect
 
 # Flask app configuration
 app = Flask(__name__)
+
 CORS(app)
+
+csrf = CSRFProtect(app)
+
 # List of allowed redirects
 ALLOWED_REDIRECTS = {
     'index': 'index',
     'about_me': 'about_me',
-    'projects': 'projects',
+    'experience': 'experience',
     'contact_me': 'contact_me',
     'download': 'download',
-    'fractal': 'fractal'
+    'csrf_error': 'csrf_error',
+    'fractal_result': 'fractal_result',
+    'fractal': 'fractal',
+    'chatbot': 'chatbot'
 }
 
-app.secret_key = os.getenv('SECRET_KEY', 'default_secret_key')
+app.secret_key = os.getenv('SECRET_KEY', 'your_default_secret_key')
+# app.secret_key = os.environ.get('SECRET_KEY')
+# if app.secret_key == 'default_secret_key':
+#     raise ValueError("The SECRET_KEY is not set properly in the environment!")
+
 app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'uploads/')
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # Limit file size to 16MB
 app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'gif'}
@@ -58,11 +70,6 @@ def create_tables():
     db.create_all()
 
 
-@app.errorhandler(CSRFError)
-def handle_csrf_error(e):
-    return render_template('csrf_error.html', reason=e.description), 400
-
-
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -79,8 +86,7 @@ def chatbot():
 @csrf.exempt  # Ensure CSRF protection is explicitly managed
 def chatbot_answer():
     try:
-        data = request.get_json()  # Get the JSON data sent by the form
-
+        data = request.get_json()
         logger.info(f"Received data: {data}")
 
         if not data:
@@ -149,6 +155,11 @@ def download_report():
         return safe_redirect('fractal')
 
     return send_file(pdf_path, as_attachment=True)
+
+
+@app.errorhandler(CSRFError)
+def handle_csrf_error(e):
+    return render_template('csrf_error.html', reason=e.description), 400
 
 
 def generate_report(fractal_dimension, image_paths):

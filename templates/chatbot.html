@@ -29,8 +29,7 @@
                         <a class="nav-link {% if request.endpoint == 'about_me' %}active{% endif %}" href="{{ url_for('about_me') }}">About Me</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'projects' %}active{% endif %}" href="{{ url_for('projects') }}">Projects</a>
-                    </li>
+                        <a class="nav-link {% if request.endpoint == 'experience' %}active{% endif %}" href="{{ url_for('experience') }}">Projects</a>                    </li>
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'contact_me' %}active{% endif %}" href="{{ url_for('contact_me') }}">Contact Me</a>
                     </li>
@@ -50,10 +49,13 @@
     <main class="container my-5">
         <h2 class="text-center" style="color: #CC7722;">FAQ Chatbot</h2>
         <form id="chatbot-form" method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <label for="question">Ask me what you'd like to know about Paul:</label>
             <input type="text" id="question" name="question" class="form-control" required>
             <button type="submit" class="btn btn-primary mt-3">Ask</button>
         </form>
+
+
         <div id="answer" class="mt-4"></div>
     </main>
 
@@ -65,7 +67,7 @@
                     <ul class="list-unstyled mb-0">
                         <li><a class="nav-link {% if request.endpoint == 'index' %}active{% endif %}" aria-current="page" href="{{ url_for('index') }}">Home</a></li>
                         <li><a class="nav-link {% if request.endpoint == 'about_me' %}active{% endif %}" href="{{ url_for('about_me') }}">About Me</a></li>
-                        <li><a class="nav-link {% if request.endpoint == 'projects' %}active{% endif %}" href="{{ url_for('projects') }}">Projects</a></li>
+                        <li><a class="nav-link {% if request.endpoint == 'experience' %}active{% endif %}" href="{{ url_for('experience') }}">Projects</a></li>
                         <li><a class="nav-link {% if request.endpoint == 'contact_me' %}active{% endif %}" href="{{ url_for('contact_me') }}">Contact Me</a></li>
                         <li class="nav-item"><a class="nav-link {% if request.endpoint == 'download' %}active{% endif %}" href="{{ url_for('download') }}">Downloads</a></li>
                     </ul>

@@ -10,12 +10,15 @@ $(document).ready(function() {
         }
 
         $.ajax({
-            url: '/chatbot-answer',  // Correct the URL to match the Flask route
+            url: '/chatbot-answer',
             type: 'POST',
             contentType: 'application/json',
-            data: JSON.stringify({ question }),  // Send the question as JSON
+            headers: {
+                'X-CSRFToken': '{{ csrf_token() }}'
+            },
+            data: JSON.stringify({ question }),
             success: function(response) {
-                $('#answer').html(`<p>${response.answer}</p>`);  // Display the chatbot's response
+                $('#answer').html(`<p>${response.answer}</p>`);
             },
             error: function(xhr, status, error) {
                 console.error("Status: " + status);
