@@ -35,7 +35,7 @@ ALLOWED_REDIRECTS = {
 # App settings
 app.secret_key = os.getenv('SECRET_KEY', 'your_default_secret_key')
 app.config.update(
-    UPLOAD_FOLDER=os.path.join(app.root_path, 'uploads/'),
+    UPLOAD_FOLDER=os.path.join(app.root_path, 'static/uploads/'),
     MAX_CONTENT_LENGTH=16 * 1024 * 1024,  # Limit file size to 16MB
     ALLOWED_EXTENSIONS={'png', 'jpg', 'jpeg', 'gif', 'svg'},
     SQLALCHEMY_DATABASE_URI=os.getenv('DATABASE_URL', 'sqlite:///site.db'),
@@ -110,6 +110,7 @@ def contact():
     # If GET request, simply render the form
     return render_template('contact.html')
 
+
 @app.route('/download')
 def download():
     return render_template('download.html')
@@ -158,32 +159,22 @@ def chatbot_answer():
         return jsonify({"error": "An error occurred while processing your question"}), 500
 
 
-@app.route('/download_report')
-def download_report():
-    try:
-        fractal_dimension = 1.5
-        image_paths = {
-            'original': os.path.join(app.config['UPLOAD_FOLDER'], 'original.png'),
-            'grayscale': os.path.join(app.config['UPLOAD_FOLDER'], 'grayscale.png'),
-            'binary': os.path.join(app.config['UPLOAD_FOLDER'], 'binary.png'),
-            'analysis': os.path.join(app.config['UPLOAD_FOLDER'], 'fractal_dimension_analysis.png')
-        }
-        pdf_path = generate_report(fractal_dimension, image_paths)
-        return send_file(pdf_path, as_attachment=True)
-
-    except ValueError as e:
-        logger.error(f'Error generating report: {e}')
-        flash('An error occurred while generating the report.', 'danger')
-        return safe_redirect('fractal')
-
 
 @app.route('/fractal', methods=['GET', 'POST'])
+@csrf.exempt
 def fractal():
     if request.method == 'POST':
         try:
             file_path = validate_and_save_file(request)
             fractal_dimension, image_paths = calculate_fractal_dimension(file_path)
-            return render_template('fractal_result.html', fractal_dimension=fractal_dimension, image_paths=image_paths)
+
+            # Generate PDF report
+            pdf_path = generate_report(fractal_dimension, image_paths)
+
+            # Render result template with the download link
+            return render_template('fractal_result.html', fractal_dimension=fractal_dimension, image_paths=image_paths,
+                                   pdf_path=pdf_path)
+
         except ValueError as e:
             logger.error(f'Error processing image: {e}')
             flash(str(e), 'danger')
@@ -263,20 +254,28 @@ def perform_box_counting(image_binary):
 
 def save_images(image, image_gray, image_binary, fractal_dimension, log_box_sizes, log_box_counts, intercept):
     """Save the original, grayscale, binary images, and the fractal dimension analysis graph."""
-    image_paths = {
-        'original': 'original.png',
-        'grayscale': 'grayscale.png',
-        'binary': 'binary.png',
-        'analysis': 'fractal_dimension_analysis.png'
-    }
-    image.save(os.path.join(app.config['UPLOAD_FOLDER'], image_paths['original']))
-    plt.imsave(os.path.join(app.config['UPLOAD_FOLDER'], image_paths['grayscale']), image_gray, cmap='gray')
-    plt.imsave(os.path.join(app.config['UPLOAD_FOLDER'], image_paths['binary']), image_binary, cmap='binary')
+    try:
+        image_paths = {
+            'original': 'uploads/original.png',
+            'grayscale': 'uploads/grayscale.png',
+            'binary': 'uploads/binary.png',
+            'analysis': 'uploads/fractal_dimension_analysis.png'
+        }
 
-    # Save the fractal analysis graph using the log values and intercept
-    save_fractal_analysis_graph(log_box_sizes, log_box_counts, fractal_dimension, intercept, image_paths['analysis'])
+        image.save(os.path.join(app.config['UPLOAD_FOLDER'], 'original.png'))
+        plt.imsave(os.path.join(app.config['UPLOAD_FOLDER'], 'grayscale.png'), image_gray, cmap='gray')
+        plt.imsave(os.path.join(app.config['UPLOAD_FOLDER'], 'binary.png'), image_binary, cmap='binary')
 
-    return image_paths
+        # Save the fractal analysis graph
+        save_fractal_analysis_graph(log_box_sizes, log_box_counts, fractal_dimension, intercept,
+                                    os.path.join(app.config['UPLOAD_FOLDER'], 'fractal_dimension_analysis.png'))
+
+        logger.info(f"Images saved successfully: {image_paths}")
+        return image_paths
+
+    except Exception as e:
+        logger.error(f"Error saving images: {str(e)}")
+        raise
 
 
 def save_fractal_analysis_graph(log_box_sizes, log_box_counts, fractal_dimension, intercept, analysis_path):
@@ -295,24 +294,53 @@ def save_fractal_analysis_graph(log_box_sizes, log_box_counts, fractal_dimension
 
 def generate_report(fractal_dimension, image_paths):
     """Generate a PDF report for the fractal dimension analysis."""
-    pdf_path = os.path.join(app.config['UPLOAD_FOLDER'], 'fractal_report.pdf')
-    c = canvas.Canvas(pdf_path, pagesize=letter)
-    width, height = letter
+    try:
+        pdf_path = os.path.join(app.config['UPLOAD_FOLDER'], 'fractal_report.pdf')
+        c = canvas.Canvas(pdf_path, pagesize=letter)
+        width, height = letter
 
-    c.setFont("Helvetica-Bold", 16)
-    c.drawCentredString(width / 2, height - 40, "Fractal Dimension Analysis Report")
+        c.setFont("Helvetica-Bold", 16)
+        c.drawCentredString(width / 2, height - 40, "Fractal Dimension Analysis Report")
 
-    c.setFont("Helvetica", 12)
-    c.drawString(100, height - 80, f"Estimated Fractal Dimension: {fractal_dimension:.2f}")
-    c.drawString(100, height - 120, "Images:")
+        c.setFont("Helvetica", 12)
+        c.drawString(100, height - 80, f"Estimated Fractal Dimension: {fractal_dimension:.2f}")
+        c.drawString(100, height - 120, "Images:")
 
-    for i, (title, path) in enumerate(image_paths.items()):
-        c.drawImage(path, 100 + (i % 2) * 220, height - 220 - (i // 2) * 200, width=200, preserveAspectRatio=True,
-                    mask='auto')
+        image_width, image_height = 200, 200  # Fixed size for images
 
-    c.drawString(100, 50, "Generated by Fractal Dimension Calculator")
-    c.save()
-    return pdf_path
+        for i, (title, path) in enumerate(image_paths.items()):
+            if os.path.exists(path):
+                logger.info(f"Adding image {title} to PDF: {path}")
+                c.drawImage(
+                    path,
+                    100 + (i % 2) * 220,
+                    height - 220 - (i // 2) * 200,
+                    width=image_width,
+                    height=image_height,
+                    preserveAspectRatio=True,
+                    mask='auto'
+                )
+            else:
+                logger.error(f"Image not found: {path}")
+
+        c.drawString(100, 50, "Generated by Fractal Dimension Calculator")
+        c.save()
+        logger.info(f"PDF generated successfully: {pdf_path}")
+        return pdf_path
+
+    except Exception as e:
+        logger.error(f"Error generating PDF: {str(e)}")
+        raise
+
+
+@app.route('/download_report')
+def download_generated_report():
+    pdf_path = request.args.get('pdf_path')
+    if not pdf_path or not os.path.exists(pdf_path):
+        flash('Report not found.', 'danger')
+        return safe_redirect('fractal')
+
+    return send_file(pdf_path, as_attachment=True)
 
 
 def box_count(img, min_box_size, max_box_size, n_sizes):
