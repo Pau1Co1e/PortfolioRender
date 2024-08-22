@@ -1,5 +1,6 @@
-$('form').on('submit', function(event) {
+$('#fractal-form').on('submit', function(event) {
     event.preventDefault();  // Prevent the form from submitting normally
+
     const fileInput = document.getElementById('file');
     const file = fileInput.files[0];
 
@@ -11,12 +12,19 @@ $('form').on('submit', function(event) {
     const formData = new FormData();
     formData.append('file', file);
 
+    // Get the CSRF token from the form
+    const csrfToken = $('input[name="csrf_token"]').val();
+    formData.append('csrf_token', csrfToken);
+
     $.ajax({
-        url: '/fractalreport',
+        url: '/fractal',
         type: 'POST',
         data: formData,
         contentType: false,
         processData: false,
+        headers: {
+            'X-CSRFToken': csrfToken  // Include the CSRF token in the headers
+        },
         success: function(response) {
             if (response.fractalDimension !== undefined) {
                 // Redirect to the results page with parameters
