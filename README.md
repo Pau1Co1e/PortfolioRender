@@ -26,7 +26,7 @@ Welcome to my personal portfolio website, designed to showcase my skills, projec
   - Transformers (for AI and ML model integration)
   - ReportLab (for generating downloadable PDF reports)
 - **Deployment:**
-  - Netlify (for deployment and hosting dynamic content, including serverless functions)
+  - Render (for deployment and hosting dynamic content, including serverless functions)
   - GitHub Pages (for static content hosting)
 
 ## Setup and Usage
