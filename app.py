@@ -159,7 +159,6 @@ def chatbot_answer():
         return jsonify({"error": "An error occurred while processing your question"}), 500
 
 
-
 @app.route('/fractal', methods=['GET', 'POST'])
 @csrf.exempt
 def fractal():
@@ -196,7 +195,13 @@ def validate_and_save_file(request):
         raise ValueError('Invalid file format')
 
     filename = secure_filename(file.filename)
-    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    upload_folder = app.config['UPLOAD_FOLDER']
+
+    # Ensure the upload folder exists
+    if not os.path.exists(upload_folder):
+        os.makedirs(upload_folder)
+
+    file_path = os.path.join(upload_folder, filename)
     file.save(file_path)
     return file_path
 
@@ -305,7 +310,7 @@ def generate_report(fractal_dimension, image_paths):
         c.setFont("Helvetica", 12)
         c.drawString(100, height - 80, f"Estimated Fractal Dimension: {fractal_dimension:.2f}")
         c.drawString(100, height - 120, "Images:")
-
+        c.drawString(x=100, y=100, text=" ")
         image_width, image_height = 200, 200  # Fixed size for images
 
         for i, (title, path) in enumerate(image_paths.items()):
