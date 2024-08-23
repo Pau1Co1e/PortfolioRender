@@ -170,6 +170,8 @@ def fractal():
 
             # Generate PDF report
             pdf_path = generate_report(fractal_dimension, image_paths)
+            session['pdf_path'] = pdf_path
+            logger.info(f"Fractal dimension calculated: {fractal_dimension}")
 
             # Render result template with the download link
             return render_template('fractal_result.html', fractal_dimension=fractal_dimension, image_paths=image_paths,
@@ -276,7 +278,7 @@ def save_images(image, image_gray, image_binary, fractal_dimension, log_box_size
 
         # Save the fractal analysis graph
         save_fractal_analysis_graph(log_box_sizes, log_box_counts, fractal_dimension, intercept,
-                                    os.path.join(app.config['UPLOAD_FOLDER'], 'fractal_dimension_analysis.png'))
+                                    os.path.join(app.config['UPLOAD_FOLDER'], ' fractal_dimension_analysis.png'))
 
         logger.info(f"Images saved successfully: {image_paths}")
         return image_paths
