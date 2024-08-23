@@ -10,7 +10,7 @@
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://code.jquery.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data:;">
 </head>
 <body>
-    <header>
+<header>
         <nav class="navbar navbar-expand-lg navbar-light bg-light">
             <div class="container-fluid">
             <a class="navbar-brand" href="{{ url_for('index') }}">
@@ -100,6 +100,22 @@
                 </div>
             </div>
         </div>
+        <!-- Fractal Dimension Calculator Project Card -->
+        <div class="col-lg-4 col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title-orange">Fractal Dimension Calculator</h5>
+                    <img src="{{ url_for('static', filename='images/leaf.jpeg') }}" class="card-img-top" width="100%" height="225" alt="image of a fractal">
+                    <p class="card-text">This project calculates the fractal dimension of an image, providing insights into its complexity and structure.</p>
+                    <ul>
+                        <li>Technologies Used: Python, NumPy, Matplotlib, PIL, Flask</li>
+                        <li>Challenges: Implementing the box-counting algorithm and ensuring accurate dimension calculation</li>
+                        <li>Outcomes: Developed a tool that accurately calculates and visualizes the fractal dimension of various images.</li>
+                    </ul>
+                    <a href="{{ url_for('fractal') }}" class="btn btn-primary btn-primary:hover" style="background-color: #CC7722; border-color: #CC7722; color: #ffffff; transition: background-color 0.3s, border-color 0.3s;">Try It Out</a>
+                </div>
+            </div>
+        </div>
 
         <!-- Stock Analysis and Prediction Project Card -->
         <div class="col-lg-4 col-md-6 mb-4">
@@ -154,24 +170,6 @@
                 </div>
             </div>
         </div>
-
-        <!-- Fractal Dimension Calculator Project Card -->
-        <div class="col-lg-4 col-md-6 mb-4">
-            <div class="card h-100">
-                <div class="card-body">
-                    <h5 class="card-title-orange">Fractal Dimension Calculator</h5>
-                    <img src="{{ url_for('static', filename='images/leaf.jpeg') }}" class="card-img-top" width="100%" height="225" alt="image of a fractal">
-                    <p class="card-text">This project calculates the fractal dimension of an image, providing insights into its complexity and structure.</p>
-                    <ul>
-                        <li>Technologies Used: Python, NumPy, Matplotlib, PIL, Flask</li>
-                        <li>Challenges: Implementing the box-counting algorithm and ensuring accurate dimension calculation</li>
-                        <li>Outcomes: Developed a tool that accurately calculates and visualizes the fractal dimension of various images.</li>
-                    </ul>
-                    <a href="{{ url_for('fractal') }}" class="btn btn-primary btn-primary:hover" style="background-color: #CC7722; border-color: #CC7722; color: #ffffff; transition: background-color 0.3s, border-color 0.3s;">Try It Out</a>
-                </div>
-            </div>
-        </div>
-
     </div>
 </div>
 
