@@ -2,6 +2,7 @@ import os
 import datetime
 import logging
 import numpy as np
+import psutil
 from PIL import Image
 from flask import Flask, render_template, request, jsonify, flash, redirect, url_for, send_file, session
 from flask_sqlalchemy import SQLAlchemy
@@ -214,7 +215,7 @@ def allowed_file(filename):
 def calculate_fractal_dimension(image_path):
     """Calculate the fractal dimension of an image and save relevant images."""
     try:
-        image = load_image(image_path)
+        image = Image.open(image_path)
         image_gray, image_binary = process_image(image)
 
         # Perform box counting
@@ -231,10 +232,12 @@ def calculate_fractal_dimension(image_path):
         raise
 
 
-def load_image(image_path):
-    """Load an image from the given path."""
-    logger.info(f"Loading image from {image_path}")
-    return Image.open(image_path)
+def resize_image(image_path, max_size=(1024, 1024)):
+    with Image.open(image_path) as img:
+        img.thumbnail((max_size), Image.LANCZOS)
+        resized_path = os.path.join(app.config['UPLOAD_FOLDER'], 'resized_' + os.path.basename(image_path))
+        img.save(resized_path)
+        return resized_path
 
 
 def process_image(image):
@@ -266,7 +269,7 @@ def save_images(image, image_gray, image_binary, fractal_dimension, log_box_size
             'binary': 'uploads/binary.png',
             'analysis': 'uploads/fractal_dimension_analysis.png'
         }
-
+        image.resize((200, 200), Image.LANCZOS)
         image.save(os.path.join(app.config['UPLOAD_FOLDER'], 'original.png'))
         plt.imsave(os.path.join(app.config['UPLOAD_FOLDER'], 'grayscale.png'), image_gray, cmap='gray')
         plt.imsave(os.path.join(app.config['UPLOAD_FOLDER'], 'binary.png'), image_binary, cmap='binary')
@@ -294,7 +297,14 @@ def save_fractal_analysis_graph(log_box_sizes, log_box_counts, fractal_dimension
     plt.legend()
     plt.grid(True)
     plt.savefig(os.path.join(app.config['UPLOAD_FOLDER'], analysis_path))
+    plt.close()
     logger.info("Fractal dimension analysis saved.")
+
+
+def log_memory_usage():
+    process = psutil.Process(os.getpid())
+    memory_info = process.memory_info()
+    logger.info(f"Memory Usage: {memory_info.rss / (1024 * 1024)} MB")
 
 
 def generate_report(fractal_dimension, image_paths):

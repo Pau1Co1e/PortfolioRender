@@ -263,3 +263,15 @@ body.dark-mode .hero-title {
 .carousel-indicators [data-bs-target].active {
     background-color: #FF9900;
 }
+
+@media print {
+    body {
+        font-size: 10pt;
+    }
+    .container {
+        width: 100%;
+    }
+    .card, .row, .text-center, .col-md-3 {
+        page-break-inside: avoid;
+    }
+}
