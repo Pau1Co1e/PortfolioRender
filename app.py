@@ -4,6 +4,7 @@ import logging
 import numpy as np
 import psutil
 from PIL import Image
+from PIL.Image import Resampling
 from flask import Flask, render_template, request, jsonify, flash, redirect, url_for, send_file, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf.csrf import CSRFProtect, CSRFError
@@ -30,7 +31,8 @@ ALLOWED_REDIRECTS = {
     'fractal': 'fractal',
     'chatbot': 'chatbot',
     'upload': 'upload',
-    'financial': 'financial'
+    'financial': 'financial',
+    'download_generated_report': 'download_generated_report'
 }
 
 # App settings
@@ -57,7 +59,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 logger = logging.getLogger()
 
 # Load the FAQ pipeline model
-faq_pipeline = pipeline("question-answering", model="distilbert-base-cased-distilled-squad")
+faq_pipeline = pipeline("question-answering", model="distilbert-base-cased-distilled-squad", device="cpu")
 
 
 @app.before_request
@@ -150,6 +152,40 @@ def chatbot_answer():
             "My name is Paul Coleman. I am an AI and ML Engineer focused on "
             "building innovative solutions in Artificial Intelligence and Machine Learning. "
             "Feel free to ask about my projects, experience, or anything AI/ML related."
+            "JOBS = 'Software Engineer Intern, January 2021 – December 2021 "
+            "Computer Science Assistant Teacher, January 2020 – December 2020"
+            "Utah Valley University College of Engineering and Technology, Orem, UT'"
+            
+            "EXPERIENCE = Led a small team in the development and enhancement of humanoid robotics, focusing on "
+            "performance and reliability."
+            "Implemented network security measures for the robotics networking systems, including firewalls and "
+            "encryption, protecting sensitive information."
+            "Developed autonomous system functionalities using Artificial Intelligence and Machine Learning for "
+            "object and facial recognition recognition and natural language processing."
+            "Attended and gave live demos at university STEM recruitment fairs with the robots.'"
+            
+            "'Effective team leader with strong communication skills and work ethic. Continuous self-improvement "
+            "through self-learning and real world applications.' 'Proven record of meeting deadlines and achieving "
+            "goals, while exceeding expectations.' "
+            "Meticulously organized and focused.'"
+            
+            "'Dedicated and insightful scholar with a relentless pursuit of knowledge in Computer Science and "
+            "Mathematics, fortified through a rigorous academic journey at Utah Valley University.'"
+            "' Mastered a broad spectrum of computer science disciplines, from foundational principles to advanced "
+            "topics in Artificial Intelligence, Machine Learning, and Robotics.'"
+            "'Studied mathematics and statistics ranging from discrete mathematics, numerical analysis, "
+            "and probabilities and statistical analysis, to calculus and linear algebra'"
+            "EDUCATION = 'Master of Science in Computer Science, August 2025, Utah Valley University, Orem, UT, "
+            "GPA 3.3; Bachelor of Science in Computer Science, August 2022, Utah Valley University, Orem, UT, "
+            "GPA 3.4; CERTIFICATIONS/ACHIEVEMENTS = Programmer, August 2020 Utah Valley University, Orem, "
+            "UT; Deans List, Utah Valley University, Orem, UT'"
+            
+            "SKILLS = 'Database Management: Microsoft SQL Server, MySQL, Data Analysis, Database Design, RDBM.'"
+            "SKILLS = 'Programming: Python, Unity C#, Java, PyTorch, TensorFlow, sklearn, JSON, XML.'"
+            "SKILLS = 'Artificial Intelligence and Machine Learning: Model Development, Algorithm Design, "
+            "Accuracy Improvements, Deep Fake Detection, Anti-Spam/Phishing Intelligent Email Filter, Autonomous "
+            "Robotics Systems, Computer Vision, Facial Image Detection, Natural Language Processing, "
+            "Sentiment Analysis.'"
         )
         result = faq_pipeline(question=question, context=context)
         answer = result.get('answer', 'Sorry, I could not find an answer.')
@@ -170,12 +206,11 @@ def fractal():
 
             # Generate PDF report
             pdf_path = generate_report(fractal_dimension, image_paths)
-            session['pdf_path'] = pdf_path
+            # session['pdf_path'] = pdf_path
             logger.info(f"Fractal dimension calculated: {fractal_dimension}")
 
             # Render result template with the download link
-            return render_template('fractal_result.html', fractal_dimension=fractal_dimension, image_paths=image_paths,
-                                   pdf_path=pdf_path)
+            return render_template('fractal_result.html', fractal_dimension=fractal_dimension, image_paths=image_paths, pdf_path=pdf_path)
 
         except ValueError as e:
             logger.error(f'Error processing image: {e}')
@@ -236,7 +271,7 @@ def calculate_fractal_dimension(image_path):
 
 def resize_image(image_path, max_size=(1024, 1024)):
     with Image.open(image_path) as img:
-        img.thumbnail((max_size), Image.LANCZOS)
+        img.thumbnail(max_size, Image.LANCZOS)
         resized_path = os.path.join(app.config['UPLOAD_FOLDER'], 'resized_' + os.path.basename(image_path))
         img.save(resized_path)
         return resized_path
@@ -271,7 +306,7 @@ def save_images(image, image_gray, image_binary, fractal_dimension, log_box_size
             'binary': 'uploads/binary.png',
             'analysis': 'uploads/fractal_dimension_analysis.png'
         }
-        image.resize((200, 200), Image.LANCZOS)
+        image.resize((200, 200), resample=Resampling.LANCZOS)
         image.save(os.path.join(app.config['UPLOAD_FOLDER'], 'original.png'))
         plt.imsave(os.path.join(app.config['UPLOAD_FOLDER'], 'grayscale.png'), image_gray, cmap='gray')
         plt.imsave(os.path.join(app.config['UPLOAD_FOLDER'], 'binary.png'), image_binary, cmap='binary')
@@ -325,11 +360,11 @@ def generate_report(fractal_dimension, image_paths):
         c.drawString(x=100, y=100, text=" ")
         image_width, image_height = 200, 200  # Fixed size for images
 
-        for i, (title, path) in enumerate(image_paths.items()):
-            if os.path.exists(path):
-                logger.info(f"Adding image {title} to PDF: {path}")
+        for i, (title, pdf_path) in enumerate(image_paths.items()):
+            if os.path.exists(pdf_path):
+                logger.info(f"Adding image {title} to PDF: {pdf_path}")
                 c.drawImage(
-                    path,
+                    pdf_path,
                     100 + (i % 2) * 220,
                     height - 220 - (i // 2) * 200,
                     width=image_width,
@@ -338,7 +373,7 @@ def generate_report(fractal_dimension, image_paths):
                     mask='auto'
                 )
             else:
-                logger.error(f"Image not found: {path}")
+                logger.error(f"Image not found: {pdf_path}")
 
         c.drawString(100, 50, "Generated by Fractal Dimension Calculator")
         c.save()
@@ -350,10 +385,10 @@ def generate_report(fractal_dimension, image_paths):
         raise
 
 
-@app.route('/download_report')
+@app.route('/download_generated_report')
 def download_generated_report():
     pdf_path = request.args.get('pdf_path')
-    if not pdf_path or not os.path.exists(pdf_path):
+    if pdf_path or os.path.exists(pdf_path):
         flash('Report not found.', 'danger')
         return safe_redirect('fractal')
 
@@ -384,4 +419,4 @@ def safe_redirect(endpoint):
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 5000))  # Render provides the PORT variable; default to 5000 if not set
-    app.run(host='0.0.0.0', port=port)
+    app.run(debug=True, host='0.0.0.0', port=port)
