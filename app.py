@@ -1,7 +1,8 @@
 import os
 import datetime
 import logging
-from flask import Flask, render_template, request, jsonify, flash, redirect, url_for, send_file, session, send_from_directory
+from flask import Flask, render_template, request, jsonify, flash, redirect, url_for, send_file, session, \
+    send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf.csrf import CSRFProtect, CSRFError
 from werkzeug.utils import secure_filename
@@ -63,7 +64,7 @@ def add_cors_headers(response):
 
 @app.errorhandler(400)
 def bad_request(error):
-    return "Bad Request!", 400
+    return f"Bad Request: {error} 400"
 
 
 @app.errorhandler(CSRFError)
@@ -73,6 +74,8 @@ def handle_csrf_error(e):
 
 @app.route('/')
 def index():
+    # mem_usage = memory_usage(-1, interval=0.1, timeout=1)
+    # print(f"Memory usage: {mem_usage}")
     return render_template('index.html')
 
 
@@ -133,7 +136,8 @@ def chatbot_answer():
 
         context = (
             "My name is Paul Coleman. I am an AI and ML Engineer focused on building innovative solutions in "
-            "Artificial Intelligence and Machine Learning. Feel free to ask about my projects, experience, or anything AI/ML related."
+            "Artificial Intelligence and Machine Learning. Feel free to ask about my projects, experience, "
+            "or anything AI/ML related."
         )
         result = faq_pipeline(question=data['question'], context=context)
         answer = result.get('answer', 'Sorry, I could not find an answer.')
@@ -158,7 +162,8 @@ def fractal():
             logger.info(f"Fractal dimension calculated: {fractal_dimension}")
 
             # Render result template with the download link
-            return render_template('fractal_result.html', fractal_dimension=fractal_dimension, image_paths=image_paths, pdf_path=pdf_path)
+            return render_template('fractal_result.html', fractal_dimension=fractal_dimension, image_paths=image_paths,
+                                   pdf_path=pdf_path)
 
         except ValueError as e:
             logger.error(f'Error processing image: {e}')
@@ -168,12 +173,12 @@ def fractal():
     return render_template('fractal.html')
 
 
-def validate_and_save_file(request):
+def validate_and_save_file(requests):
     """Validate the uploaded file and save it to the configured upload folder."""
-    if 'file' not in request.files:
+    if 'file' not in requests.files:
         raise ValueError('No file part')
 
-    file = request.files['file']
+    file = requests.files['file']
     if file.filename == '':
         raise ValueError('No selected file')
 
@@ -182,7 +187,13 @@ def validate_and_save_file(request):
 
     filename = secure_filename(file.filename)
     file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+
+    # Ensure the upload directory exists
+    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+    # Save the file
     file.save(file_path)
+
     return file_path
 
 
@@ -206,7 +217,8 @@ def calculate_fractal_dimension(image_path):
         fractal_dimension, log_box_sizes, log_box_counts, intercept = perform_box_counting(image_binary)
 
         # Save images and analysis graph
-        image_paths = save_images(image, image_gray, image_binary, fractal_dimension, log_box_sizes, log_box_counts, intercept)
+        image_paths = save_images(image, image_gray, image_binary, fractal_dimension, log_box_sizes, log_box_counts,
+                                  intercept)
 
         return fractal_dimension, image_paths
 
@@ -255,6 +267,7 @@ def perform_box_counting(image_binary):
     except Exception as e:
         logger.error(f"Error during box counting: {str(e)}")
         raise
+
 
 def box_count(img, min_box_size, max_box_size, n_sizes):
     """Box counting algorithm to compute the number of boxes containing parts of the image."""
