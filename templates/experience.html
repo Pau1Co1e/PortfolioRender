@@ -60,6 +60,7 @@
 
                         Your browser does not support the video tag.
                     </video>
+                    <br><br><br>
                     <p class="card-text">Developed software for humanoid robots capable of performing complex tasks autonomously.</p>
                     <ul>
                         <li>Technologies Used: Python, ROS, OpenCV</li>
@@ -77,8 +78,6 @@
                 <div class="card-body">
                     <h5 class="card-title-orange">AI Chatbot</h5>
                     <iframe src="{{ url_for('chatbot') }}" class="card-img-top" width="100%" height="400"></iframe>
-
-
                     <div id="answer" class="mt-4">
                         <!-- Displaying Flash Messages -->
                         {% with messages = get_flashed_messages(with_categories=True) %}
@@ -100,12 +99,14 @@
                 </div>
             </div>
         </div>
+
         <!-- Fractal Dimension Calculator Project Card -->
         <div class="col-lg-4 col-md-6 mb-4">
             <div class="card h-100">
                 <div class="card-body">
                     <h5 class="card-title-orange">Fractal Dimension Calculator</h5>
-                    <img src="{{ url_for('static', filename='images/leaf.jpeg') }}" class="card-img-top" width="100%" height="225" alt="image of a fractal">
+                    <img src="{{ url_for('static', filename='images/report_card.png') }}" class="card-img-top" width="500" height="400" alt="image of a fractal">
+                    <br><br><br>
                     <p class="card-text">This project calculates the fractal dimension of an image, providing insights into its complexity and structure.</p>
                     <ul>
                         <li>Technologies Used: Python, NumPy, Matplotlib, PIL, Flask</li>
@@ -158,7 +159,7 @@
                             <span class="visually-hidden">Next</span>
                         </button>
                     </section>
-
+                    <br><br><br>
                     <p class="card-text">This project involves predicting future stock prices using historical data and advanced statistical methods like Monte Carlo simulations and Moving Average Method.</p>
 
                     <!-- Project Details -->
