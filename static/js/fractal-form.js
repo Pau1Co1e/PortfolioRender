@@ -1,4 +1,4 @@
-$('#fractal-form').on('submit', function(event) {
+$('form').on('submit', function(event) {
     event.preventDefault();  // Prevent the form from submitting normally
 
     const fileInput = document.getElementById('file');
@@ -17,7 +17,7 @@ $('#fractal-form').on('submit', function(event) {
     formData.append('csrf_token', csrfToken);
 
     $.ajax({
-        url: '/fractal',
+        url: '/fractal_report',
         type: 'POST',
         data: formData,
         contentType: false,
@@ -28,7 +28,7 @@ $('#fractal-form').on('submit', function(event) {
         success: function(response) {
             if (response.fractalDimension !== undefined) {
                 // Redirect to the results page with parameters
-                window.location.href = `/fractal_result?fractal_dimension=${response.fractalDimension}&original=${response.image_paths.original}&grayscale=${response.image_paths.grayscale}&binary=${response.image_paths.binary}&analysis=${response.image_paths.analysis}`;
+                window.location.href = `/fractal_result?fractal_dimension=${Number(response.fractalDimension).toFixed(2)}&original=${response.image_paths.original}&grayscale=${response.image_paths.grayscale}&binary=${response.image_paths.binary}&analysis=${response.image_paths.analysis}`;
             } else {
                 alert("Error: Fractal Dimension is undefined.");
             }

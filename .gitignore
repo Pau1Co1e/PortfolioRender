@@ -10,3 +10,4 @@ gen
 *./instance
 static/docs/chatbot.log
 /instance/
+/static/uploads/
