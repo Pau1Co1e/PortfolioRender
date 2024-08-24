@@ -1,11 +1,14 @@
 import os
 import datetime
 import logging
+import asyncio
 from flask import Flask, render_template, request, jsonify, flash, redirect, url_for, send_file, session, \
     send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf.csrf import CSRFProtect, CSRFError
 from werkzeug.utils import secure_filename
+from transformers import pipeline
+from flask_caching import Cache
 
 # Flask app configuration
 app = Flask(__name__)
@@ -42,10 +45,28 @@ app.config.update(
 # Initialize extensions
 csrf = CSRFProtect(app)
 db = SQLAlchemy(app)
+cache = Cache(app, config={'CACHE_TYPE': 'simple'})  # Simple cache, replace with Redis for production
 
 # Initialize logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 logger = logging.getLogger()
+
+# Preload the AI model
+faq_pipeline = pipeline("question-answering", model="distilbert-base-cased-distilled-squad", device="cpu")
+
+
+def call_faq_pipeline(question, context):
+    # Log the inputs for debugging
+    logger.info(f"Calling FAQ pipeline with question: {question} and context: {context}")
+    return faq_pipeline(question=question, context=context)
+
+
+def preprocess_question(question):
+    # Strip leading/trailing whitespace and ensure proper punctuation
+    question = question.strip()
+    if not question.endswith('?'):
+        question += '?'
+    return question
 
 
 @app.before_request
@@ -74,8 +95,6 @@ def handle_csrf_error(e):
 
 @app.route('/')
 def index():
-    # mem_usage = memory_usage(-1, interval=0.1, timeout=1)
-    # print(f"Memory usage: {mem_usage}")
     return render_template('index.html')
 
 
@@ -121,26 +140,54 @@ def chatbot():
 
 @app.route('/chatbot-answer', methods=['POST'])
 @csrf.exempt
-def chatbot_answer():
+async def chatbot_answer():
     try:
-        # Lazy import for memory efficiency
-        from transformers import pipeline
-
+        # Get JSON data from the request (synchronously)
         data = request.get_json()
         logger.info(f"Received data: {data}")
 
         if not data or 'question' not in data:
+            logger.warning("No question provided in the request")
             return jsonify({"error": "No question provided"}), 400
 
-        faq_pipeline = pipeline("question-answering", model="distilbert-base-cased-distilled-squad", device="cpu")
+        # Preprocess the question
+        question = preprocess_question(data['question'])
 
+        # Check for a cached response
+        cached_response = cache.get(f"chatbot_answer_{question}")
+        if cached_response:
+            logger.info(f"Returning cached response: {cached_response}")
+            return jsonify(cached_response)
+
+        # Enhanced context with more specific information
         context = (
             "My name is Paul Coleman. I am an AI and ML Engineer focused on building innovative solutions in "
-            "Artificial Intelligence and Machine Learning. Feel free to ask about my projects, experience, "
-            "or anything AI/ML related."
+            "Artificial Intelligence and Machine Learning. I studied at Utah Valley University, where I earned "
+            "a Bachelor of Science in Computer Science. I have experience in Python, Java, and AI/ML frameworks "
+            "such as TensorFlow and PyTorch. Feel free to ask about my projects, education, experience, or anything AI/ML related."
         )
-        result = faq_pipeline(question=data['question'], context=context)
+
+        # Log the full context for debugging
+        logger.info(f"Full context: {context}")
+
+        # Perform the model inference asynchronously
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(
+            None, call_faq_pipeline, question, context
+        )
+
+        # Log the raw output from the model
+        logger.info(f"Model raw output: {result}")
+
+        # Extract the answer
         answer = result.get('answer', 'Sorry, I could not find an answer.')
+
+        # Log the extracted answer
+        logger.info(f"Extracted answer: {answer}")
+
+        # Cache the result
+        cache.set(f"chatbot_answer_{question}", {"answer": answer}, timeout=60)
+
         return jsonify({"answer": answer})
 
     except Exception as e:
@@ -148,16 +195,24 @@ def chatbot_answer():
         return jsonify({"error": "An error occurred while processing your question"}), 500
 
 
+
+
 @app.route('/fractal', methods=['GET', 'POST'])
 @csrf.exempt
-def fractal():
+async def fractal():
     if request.method == 'POST':
         try:
+            # Validate and save the uploaded file
             file_path = validate_and_save_file(request)
-            fractal_dimension, image_paths = calculate_fractal_dimension(file_path)
 
-            # Generate PDF report
-            pdf_path = generate_report(fractal_dimension, image_paths)
+            # Get the current event loop
+            loop = asyncio.get_event_loop()
+
+            # Perform fractal dimension calculation asynchronously
+            fractal_dimension, image_paths = await loop.run_in_executor(None, calculate_fractal_dimension, file_path)
+
+            # Generate PDF report asynchronously
+            pdf_path = await loop.run_in_executor(None, generate_report, fractal_dimension, image_paths)
 
             logger.info(f"Fractal dimension calculated: {fractal_dimension}")
 
@@ -173,12 +228,12 @@ def fractal():
     return render_template('fractal.html')
 
 
-def validate_and_save_file(requests):
+def validate_and_save_file(request):
     """Validate the uploaded file and save it to the configured upload folder."""
-    if 'file' not in requests.files:
+    if 'file' not in request.files:
         raise ValueError('No file part')
 
-    file = requests.files['file']
+    file = request.files['file']
     if file.filename == '':
         raise ValueError('No selected file')
 
@@ -332,11 +387,6 @@ def save_fractal_analysis_graph(log_box_sizes, log_box_counts, fractal_dimension
 
         # Direct calculation of the fit line using the calculated slope and intercept
         fit_line = intercept + fractal_dimension * log_box_sizes
-
-        # Check if the slope has the correct sign
-        if fractal_dimension > 0:
-            fractal_dimension = -fractal_dimension
-            fit_line = intercept + fractal_dimension * log_box_sizes
 
         # Debugging: Print fit line values
         print("Log Box Sizes:", log_box_sizes)
