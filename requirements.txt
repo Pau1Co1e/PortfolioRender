@@ -16,3 +16,4 @@ werkzeug~=3.0.3
 gunicorn==23.0.0
 psutil~=6.0.0
 flask-caching~=2.3.0
+datasets~=2.21.0

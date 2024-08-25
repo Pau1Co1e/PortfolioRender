@@ -2,7 +2,8 @@ import os
 import datetime
 import logging
 import asyncio
-from flask import Flask, render_template, request, jsonify, flash, redirect, url_for, send_file, session, \
+import re
+from flask import Flask, render_template, request, Response, jsonify, flash, redirect, url_for, send_file, session, \
     send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf.csrf import CSRFProtect, CSRFError
@@ -47,7 +48,7 @@ csrf = CSRFProtect(app)
 db = SQLAlchemy(app)
 cache = Cache(app, config={'CACHE_TYPE': 'simple'})  # Simple cache, replace with Redis for production
 
-# Initialize logging
+# Logging configuration
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 logger = logging.getLogger()
 
@@ -142,7 +143,6 @@ def chatbot():
 @csrf.exempt
 async def chatbot_answer():
     try:
-        # Get JSON data from the request (synchronously)
         data = request.get_json()
         logger.info(f"Received data: {data}")
 
@@ -150,51 +150,52 @@ async def chatbot_answer():
             logger.warning("No question provided in the request")
             return jsonify({"error": "No question provided"}), 400
 
-        # Preprocess the question
         question = preprocess_question(data['question'])
 
-        # Check for a cached response
         cached_response = cache.get(f"chatbot_answer_{question}")
         if cached_response:
             logger.info(f"Returning cached response: {cached_response}")
             return jsonify(cached_response)
 
-        # Enhanced context with more specific information
-        context = (
-            "My name is Paul Coleman. I am an AI and ML Engineer focused on building innovative solutions in "
-            "Artificial Intelligence and Machine Learning. I studied at Utah Valley University, where I earned "
-            "a Bachelor of Science in Computer Science. I have experience in Python, Java, and AI/ML frameworks "
-            "such as TensorFlow and PyTorch. Feel free to ask about my projects, education, experience, or anything AI/ML related."
+        # Static context about yourself or the topic
+        static_context = (
+            "My name is Paul Coleman. I am an AI and ML Engineer with expertise in Artificial Intelligence and Machine Learning. "
+            "I have experience in Python, Java, and AI/ML frameworks like TensorFlow and PyTorch. "
+            "I studied at Utah Valley University, earning a Bachelor of Science in Computer Science."
+            "I am currently pursuing a masters degree in Computer Science and will graduate Fall 2025."
+            "Studied mathematics and statistics ranging from discrete mathematics, numerical analysis, and probabilities and statistical analysis, to calculus and linear algebra."
+            "Web Development Skills are Flask, Javascript, C#, PHP, SEO, UX/UI Design, Responsive Design, Git, Swift."
         )
 
-        # Log the full context for debugging
-        logger.info(f"Full context: {context}")
+        # Maintain conversation history in the session
+        session['conversation_history'] = session.get('conversation_history', [])
+        session['conversation_history'].append(question)
+        # Combine static context with conversation history to create full context
+        full_context = static_context + ' '.join(session['conversation_history'])
+        logger.info(f"Full context: {full_context}")
 
         # Perform the model inference asynchronously
         loop = asyncio.get_event_loop()
         result = await loop.run_in_executor(
-            None, call_faq_pipeline, question, context
+            None, call_faq_pipeline, question, full_context
         )
 
-        # Log the raw output from the model
         logger.info(f"Model raw output: {result}")
 
         # Extract the answer
         answer = result.get('answer', 'Sorry, I could not find an answer.')
 
-        # Log the extracted answer
         logger.info(f"Extracted answer: {answer}")
 
-        # Cache the result
-        cache.set(f"chatbot_answer_{question}", {"answer": answer}, timeout=60)
+        # Cache only valid responses
+        if answer and len(answer) > 3:  # Arbitrary length check
+            cache.set(f"chatbot_answer_{question}", {"answer": answer}, timeout=60)
 
         return jsonify({"answer": answer})
 
     except Exception as e:
         logger.error(f"Error processing question: {str(e)}")
         return jsonify({"error": "An error occurred while processing your question"}), 500
-
-
 
 
 @app.route('/fractal', methods=['GET', 'POST'])
@@ -255,6 +256,53 @@ def validate_and_save_file(request):
 def allowed_file(filename):
     """Check if the uploaded file has an allowed extension."""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
+
+
+@app.route('/videos/<filename>')
+def serve_video(filename):
+    # Serve video files with byte-range support for efficient streaming
+    range_header = request.headers.get('Range', None)
+    video_path = os.path.join(app.root_path, 'static/videos', filename)
+
+    if not os.path.exists(video_path):
+        logger.error(f"File not found: {video_path}")
+        return "File not found", 404
+
+    try:
+        return partial_response(video_path, range_header)
+    except Exception as e:
+        logger.error(f"Error serving video file: {e}")
+        return "Internal Server Error", 500
+
+
+def partial_response(file_path, range_header):
+    """
+    Serve partial content for large video files to support byte-range requests.
+    """
+    file_size = os.path.getsize(file_path)
+    start, end = 0, file_size - 1
+
+    if range_header:
+        # Parse the range header to get the start and end bytes
+        range_match = re.search(r'bytes=(\d+)-(\d*)', range_header)
+        if range_match:
+            start = int(range_match.group(1))
+            if range_match.group(2):
+                end = int(range_match.group(2))
+
+    length = end - start + 1
+    with open(file_path, 'rb') as f:
+        f.seek(start)
+        data = f.read(length)
+
+    headers = {
+        'Content-Range': f'bytes {start}-{end}/{file_size}',
+        'Accept-Ranges': 'bytes',
+        'Content-Length': str(length),
+        'Content-Type': 'video/mp4',
+    }
+
+    return Response(data, status=206, headers=headers)
 
 
 def calculate_fractal_dimension(image_path):
