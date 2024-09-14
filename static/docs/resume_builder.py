@@ -51,10 +51,12 @@ def create_pdf_resume(filename, is_government_format=True):
     pdf.cell(200, 10, 'Portfolio Website', new_x=XPos.LMARGIN, new_y=YPos.NEXT, align='C', link='https://portfoliorender-p89i.onrender.com')
     pdf.cell(200, 10, 'GitHub', new_x=XPos.LMARGIN, new_y=YPos.NEXT, align='C', link='https://pau1co1e.github.io')
 
+    if is_government_format:
+        pdf.set_font('Helvetica', '', 12)
+        pdf.set_text_color(0, 0, 0)
+        pdf.cell(200, 10, 'Date Available to Begin Work: Immediately', new_x=XPos.LMARGIN, new_y=YPos.NEXT, align='C')
     pdf.set_font('Helvetica', '', 12)
     pdf.set_text_color(0, 0, 0)
-    pdf.cell(200, 10, 'Date Available to Begin Work: Immediately', new_x=XPos.LMARGIN, new_y=YPos.NEXT, align='C')
-
     pdf.ln(10)
 
     # Summary section
