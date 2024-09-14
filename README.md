@@ -29,12 +29,15 @@ Welcome to my personal portfolio website, designed to showcase my skills, projec
   - Render (for deployment and hosting dynamic content, including serverless functions)
   - GitHub Pages (for static content hosting)
 
-## Setup and Usage
-### View the Website Online
-#### Visit the live website: [https://portfoliorender-p89i.onrender.com](https://portfoliorender-p89i.onrender.com)
+## View the Website Online
 
-### OR
-#### Visit GitHub Pages: [https://pau1co1e.github.io](https://pau1co1e.github.io)
+- ### Visit the live website by clicking [here](https://portfoliorender-p89i.onrender.com). 
+- ### Visit GitHub Pages: [here](https://pau1co1e.github.io).
+- ### For questions or comments [contact](https://portfoliorender-p89i.onrender.com/contact) me or talk to live [chatbot](https://portfoliorender-p89i.onrender.com/experience).
+
+
+## Please be aware, due to the limitations of free dynamic hosting services, it may take up to 50 seconds or more for page to initially load due to server spin up.
+## Furthermore, some functions are disabled or simple don't work when viewing GitHub Pages; a limitation of static hosting services. 
 
 ### Run the Website Locally
 1. Clone the repository to your local machine:
