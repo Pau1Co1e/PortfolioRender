@@ -1,3 +1,5 @@
+from PIL import Image, UnidentifiedImageError
+from PIL.Image import Resampling
 import os
 import datetime
 import logging
@@ -10,6 +12,18 @@ from flask_wtf.csrf import CSRFProtect, CSRFError
 from werkzeug.utils import secure_filename
 from transformers import pipeline
 from flask_caching import Cache
+from scipy.stats import linregress
+import matplotlib
+from matplotlib import pyplot as plt
+import numpy as np
+from scipy.stats import linregress
+from PIL import Image
+from skimage.color import rgb2gray
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.units import inch
+from reportlab.pdfgen import canvas
+
+matplotlib.use('Agg')
 
 # Flask app configuration
 app = Flask(__name__)
@@ -161,10 +175,13 @@ async def chatbot_answer():
         static_context = (
             "My name is Paul Coleman. I am an AI and ML Engineer with expertise in Artificial Intelligence and Machine Learning. "
             "I have experience in Python, Java, and AI/ML frameworks like TensorFlow and PyTorch. "
-            "I studied at Utah Valley University, earning a Bachelor of Science in Computer Science."
-            "I am currently pursuing a masters degree in Computer Science and will graduate Fall 2025."
-            "Studied mathematics and statistics ranging from discrete mathematics, numerical analysis, and probabilities and statistical analysis, to calculus and linear algebra."
-            "Web Development Skills are Flask, Javascript, C#, PHP, SEO, UX/UI Design, Responsive Design, Git, Swift."
+            "I studied at Utah Valley University."
+            "Most Recent Professional Work Experience or Job Title: Full Stack Web Developer. Tools used as a full stack web developer: ASP.NET Core."
+            "Graduated with a Bachelor of Science in Computer Science in August 2022"
+            "I am currently a graduate student pursuing a masters degree in Computer Science and will graduate with a masters degree in Fall 2025."
+            "Studied mathematics and statistics: discrete mathematics, numerical analysis, probabilities and statistical analysis, data analysis, calculus, and linear algebra."
+            "Web Development Skills and Experience: Flask, C#, PHP, Search Engine Optimization, User Experience Design, User Interface Design, Responsive Design, PostgreSQL, Git, Swift."
+            "{Core Programming Languages: [Python, C#, Java, SQL, HTML5/CSS3, JavaScript]}"
         )
 
         # Maintain conversation history in the session
@@ -309,9 +326,8 @@ def calculate_fractal_dimension(image_path):
     """Calculate the fractal dimension of an image and save relevant images."""
     try:
         # Lazy import for memory efficiency
-        from PIL import Image
-        from skimage.color import rgb2gray
-        import numpy as np
+        # from PIL import Image
+        # from skimage.color import rgb2gray
 
         with Image.open(image_path) as image:
             image_gray, image_binary = process_image(image)
@@ -334,10 +350,13 @@ def process_image(image):
     """Convert image to grayscale and binary formats."""
     try:
         logger.info("Converting image to grayscale")
-        from skimage.color import rgb2gray
-        import numpy as np
+        # from skimage.color import rgb2gray
 
-        image = image.resize((1024, 1024))  # Resize image to a manageable size
+        # Resize and convert to RGB if necessary
+        image = image.resize((1024, 1024))
+        if image.mode == 'RGBA':
+            image = image.convert('RGB')  # Ensure it's in RGB mode
+
         image_gray = rgb2gray(np.array(image))
         logger.info("Converting image to binary")
         image_binary = image_gray < 0.5
@@ -348,93 +367,44 @@ def process_image(image):
 
 
 def perform_box_counting(image_binary):
-    """Perform box counting to estimate the fractal dimension."""
-    try:
-        from scipy.stats import linregress
-        import numpy as np
+    """Perform box counting and linear regression to estimate the fractal dimension."""
 
-        # Box sizes and counts for box counting
-        min_box_size, max_box_size, n_sizes = 2, min(image_binary.shape) // 4, 10
-        box_sizes, box_counts = box_count(image_binary, min_box_size, max_box_size, n_sizes)
+    # Define box sizes (same functionality as `box_count`)
+    min_box_size, max_box_size, n_sizes = 2, min(image_binary.shape) // 4, 10
+    sizes = np.floor(np.logspace(np.log10(min_box_size), np.log10(max_box_size), num=n_sizes)).astype(int)
+    unique_sizes = np.unique(sizes)
+    counts = []
 
-        # Calculate log values
-        log_box_sizes, log_box_counts = np.log(box_sizes), np.log(box_counts)
+    # Perform box counting
+    for size in unique_sizes:
+        covered_boxes = np.add.reduceat(
+            np.add.reduceat(image_binary, np.arange(0, image_binary.shape[0], size), axis=0),
+            np.arange(0, image_binary.shape[1], size), axis=1)
+        counts.append(np.count_nonzero(covered_boxes > 0))
 
-        # Perform linear regression
-        slope, intercept, r_value, p_value, std_err = linregress(log_box_sizes, log_box_counts)
-        fractal_dimension = -slope
+    # Log-transform box sizes and counts
+    log_box_sizes, log_box_counts = np.log(unique_sizes), np.log(counts)
 
-        logger.info(f"Fractal dimension calculated: {fractal_dimension}, R-squared: {r_value ** 2}")
-        return fractal_dimension, log_box_sizes, log_box_counts, intercept
+    # Perform linear regression to get the fractal dimension
+    slope, intercept, r_value, p_value, std_err = linregress(log_box_sizes, log_box_counts)
+    fractal_dimension = -slope  # Fractal dimension is the negative slope
 
-    except Exception as e:
-        logger.error(f"Error during box counting: {str(e)}")
-        raise
+    logger.info(f"Fractal dimension calculated: {fractal_dimension}, R-squared: {r_value ** 2}")
 
-
-def box_count(img, min_box_size, max_box_size, n_sizes):
-    """Box counting algorithm to compute the number of boxes containing parts of the image."""
-    try:
-        import numpy as np
-
-        sizes = np.floor(np.logspace(np.log10(min_box_size), np.log10(max_box_size), num=n_sizes)).astype(int)
-        unique_sizes = np.unique(sizes)
-        counts = []
-
-        for size in unique_sizes:
-            covered_boxes = np.add.reduceat(np.add.reduceat(img, np.arange(0, img.shape[0], size), axis=0),
-                                            np.arange(0, img.shape[1], size), axis=1)
-            counts.append(np.count_nonzero(covered_boxes > 0))
-
-        return unique_sizes, counts
-    except Exception as e:
-        logger.error(f"Error in box_count function: {str(e)}")
-        raise
-
-
-def save_images(image, image_gray, image_binary, fractal_dimension, log_box_sizes, log_box_counts, intercept):
-    """Save the original, grayscale, binary images, and the fractal dimension analysis graph."""
-    try:
-        from matplotlib import pyplot as plt
-        import os
-
-        # Ensure the static folder exists
-        static_folder = app.config['UPLOAD_FOLDER']
-        os.makedirs(static_folder, exist_ok=True)
-
-        image_paths = {
-            'original': os.path.join(static_folder, 'original.png'),
-            'grayscale': os.path.join(static_folder, 'grayscale.png'),
-            'binary': os.path.join(static_folder, 'binary.png'),
-            'analysis': os.path.join(static_folder, 'analysis.png')
-        }
-
-        image.save(image_paths['original'])
-        plt.imsave(image_paths['grayscale'], image_gray, cmap='gray')
-        plt.imsave(image_paths['binary'], image_binary, cmap='binary')
-
-        # Save the fractal analysis graph
-        save_fractal_analysis_graph(log_box_sizes, log_box_counts, fractal_dimension, intercept,
-                                    image_paths['analysis'])
-
-        logger.info(f"Images saved successfully: {image_paths}")
-        return image_paths
-
-    except Exception as e:
-        logger.error(f"Error saving images: {str(e)}")
-        raise
+    return fractal_dimension, log_box_sizes, log_box_counts, intercept
 
 
 def save_fractal_analysis_graph(log_box_sizes, log_box_counts, fractal_dimension, intercept, plot_path):
     """Generate and save the fractal dimension analysis graph."""
     try:
-        from matplotlib import pyplot as plt
-        import numpy as np
+        # import matplotlib
+        # matplotlib.use('Agg')  # Use a non-interactive backend for rendering plots to files
+        # from matplotlib import pyplot as plt
 
         plt.figure()
 
         # Direct calculation of the fit line using the calculated slope and intercept
-        fit_line = intercept + fractal_dimension * log_box_sizes
+        fit_line = fractal_dimension * log_box_sizes
 
         # Debugging: Print fit line values
         print("Log Box Sizes:", log_box_sizes)
@@ -467,6 +437,39 @@ def save_fractal_analysis_graph(log_box_sizes, log_box_counts, fractal_dimension
         raise
 
 
+def save_images(image, image_gray, image_binary, fractal_dimension, log_box_sizes, log_box_counts, intercept):
+    """Save the original, grayscale, binary images, and the fractal dimension analysis graph."""
+    try:
+        # from matplotlib import pyplot as plt
+        # import os
+
+        # Ensure the static folder exists
+        static_folder = app.config['UPLOAD_FOLDER']
+        os.makedirs(static_folder, exist_ok=True)
+
+        image_paths = {
+            'original': os.path.join(static_folder, 'original.png'),
+            'grayscale': os.path.join(static_folder, 'grayscale.png'),
+            'binary': os.path.join(static_folder, 'binary.png'),
+            'analysis': os.path.join(static_folder, 'analysis.png')
+        }
+
+        image.save(image_paths['original'])
+        plt.imsave(image_paths['grayscale'], image_gray, cmap='gray')
+        plt.imsave(image_paths['binary'], image_binary, cmap='binary')
+
+        # Save the fractal analysis graph
+        save_fractal_analysis_graph(log_box_sizes, log_box_counts, fractal_dimension, intercept,
+                                    image_paths['analysis'])
+
+        logger.info(f"Images saved successfully: {image_paths}")
+        return image_paths
+
+    except Exception as e:
+        logger.error(f"Error saving images: {str(e)}")
+        raise
+
+
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
     return send_from_directory('static/uploads', filename)
@@ -475,9 +478,9 @@ def uploaded_file(filename):
 def resize_image(image_path, max_size=(1024, 1024)):
     """Resize the image to a specified maximum size and return the path."""
     try:
-        from PIL import Image, UnidentifiedImageError
-        from PIL.Image import Resampling
-        import os
+        # from PIL import Image, UnidentifiedImageError
+        # from PIL.Image import Resampling
+        # import os
 
         if os.path.isfile(image_path):
             with Image.open(image_path) as img:
@@ -496,10 +499,10 @@ def resize_image(image_path, max_size=(1024, 1024)):
 def generate_report(fractal_dimension, image_paths):
     """Generate a PDF report for the fractal dimension analysis."""
     try:
-        from reportlab.lib.pagesizes import letter
-        from reportlab.lib.units import inch
-        from reportlab.pdfgen import canvas
-        import os
+        # from reportlab.lib.pagesizes import letter
+        # from reportlab.lib.units import inch
+        # from reportlab.pdfgen import canvas
+        # import os
 
         pdf_path = os.path.join(app.config['UPLOAD_FOLDER'], 'fractal_report.pdf')
         c = canvas.Canvas(pdf_path, pagesize=letter)
