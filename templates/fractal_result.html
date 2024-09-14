@@ -57,21 +57,21 @@
         <div class="row text-center">
             <div class="col-md-3">
                 <h6>Original Image</h6>
-                <img src="{{ url_for('uploaded_file', filename='original.png') }}" alt="Original Image" class="img-fluid">
+                <img src="{{ url_for('static', filename='uploads/original.png') }}" alt="Original Image" class="img-fluid">
 
             </div>
             <div class="col-md-3">
                 <h6>Grayscale Image</h6>
-                <img src="{{ url_for('uploaded_file', filename='grayscale.png') }}" alt="Grayscale Image" class="img-fluid">
+                <img src="{{ url_for('static', filename='uploads/grayscale.png') }}" alt="Grayscale Image" class="img-fluid">
 
             </div>
             <div class="col-md-3">
                 <h6>Binary Image</h6>
-                <img src="{{ url_for('uploaded_file', filename='binary.png') }}" alt="Binary Image" class="img-fluid">
+                <img src="{{ url_for('static', filename='uploads/binary.png') }}" alt="Binary Image" class="img-fluid">
             </div>
             <div class="col-md-3">
                 <h6>Analysis Graph</h6>
-                <img src="{{ url_for('uploaded_file', filename='analysis.png') }}" alt="Analysis Graph" class="img-fluid">
+                <img src="{{ url_for('static', filename='uploads/analysis.png') }}" alt="Analysis Graph" class="img-fluid">
             </div>
         </div>
         <section>
