@@ -32,7 +32,7 @@ Welcome to my personal portfolio website, designed to showcase my skills, projec
 ## View the Website Online
 
 - ### Visit the live website by clicking [here](https://portfoliorender-p89i.onrender.com). 
-- ### Visit GitHub Pages: [here](https://pau1co1e.github.io).
+- ### Visit GitHub Pages: [here](https://github.com/Pau1Co1e).
 - ### For questions or comments [contact](https://portfoliorender-p89i.onrender.com/contact) me or talk to live [chatbot](https://portfoliorender-p89i.onrender.com/experience).
 
 
