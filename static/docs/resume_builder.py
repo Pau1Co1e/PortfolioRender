@@ -49,7 +49,7 @@ def create_pdf_resume(filename, is_government_format=True):
     pdf.set_font('Helvetica', 'U', 12)
     pdf.set_text_color(0, 0, 255)
     pdf.cell(200, 10, 'Portfolio Website', new_x=XPos.LMARGIN, new_y=YPos.NEXT, align='C', link='https://portfoliorender-p89i.onrender.com')
-    pdf.cell(200, 10, 'GitHub', new_x=XPos.LMARGIN, new_y=YPos.NEXT, align='C', link='https://pau1co1e.github.io')
+    pdf.cell(200, 10, 'GitHub', new_x=XPos.LMARGIN, new_y=YPos.NEXT, align='C', link='https://github.com/Pau1Co1e')
 
     if is_government_format:
         pdf.set_font('Helvetica', '', 12)
@@ -71,18 +71,25 @@ def create_pdf_resume(filename, is_government_format=True):
                                               "AI-driven solutions for fintech and cybersecurity, leveraging a strong "
                                               "background in software development and data analysis. Adept at working "
                                               "with cloud infrastructure, containerization, and deployment of machine "
-                                              "learning models. Proficient in Python, Flask, and Docker, "
-                                              "with hands-on experience in designing, developing, and migrating web "
-                                              "applications to AWS. Committed to utilizing technology to solve "
-                                              "complex problems in dynamic environments."))
+                                              "learning models. Proficient in Python, Flask, and Docker, with hands-on "
+                                              "experience in designing, developing, and migrating web applications to AWS. "
+                                              "Committed to utilizing technology to solve complex problems in dynamic "
+                                              "environments. I’ve built projects from scratch in areas like computer vision, "
+                                              "natural language processing, sentiment analysis, financial prediction models, "
+                                              "anti-spam systems, and deepfake detection. I take pride in building every "
+                                              "project from the ground up, getting hands-on with the code, and solving "
+                                              "real-world problems."))
     if is_government_format:
         pdf.set_font('Helvetica', '', 12)
         pdf.multi_cell(190, 10, sanitize_text(
             "Versatile Software Engineer with expertise in Artificial Intelligence and Machine Learning, applied to "
             "cybersecurity, finance, data analysis, and cloud computing. Proven in developing AI models and machine "
-            "learning algorithms, enhancing system performance and ensuring data security. Seeking an IT or Software "
-            "Engineering role to improve system reliability and efficiency."
-        ))
+            "learning algorithms, enhancing system performance and ensuring data security. Experienced in full-stack "
+            "development, with contributions in both backend and frontend systems at ResNexus, and leading a team on AI-driven "
+            "robotics systems at Utah Valley University. I’ve built projects from scratch in areas like computer vision, "
+            "natural language processing, sentiment analysis, and predictive financial models. Skilled in implementing "
+            "network security measures. Particularly interested in applying skills in Finance, Healthcare, and Robotics, "
+            "I take pride in leveraging my AI/ML expertise to push the boundaries of technology and solve high-impact problems."))
 
     pdf.ln(5)
 
@@ -244,7 +251,7 @@ def create_docx_resume(filename, is_government_format=True):
     contact_paragraph = doc.add_paragraph()
     add_hyperlink(contact_paragraph, 'Portfolio Website', 'https://portfoliorender-p89i.onrender.com')
     contact_paragraph.add_run(' | ')  # Adding separator between links
-    add_hyperlink(contact_paragraph, 'GitHub', 'https://pau1co1e.github.io')
+    add_hyperlink(contact_paragraph, 'GitHub', 'https://github.com/Pau1Co1e')
 
     doc.add_paragraph('Date Available to Begin Work: Immediately')
 
