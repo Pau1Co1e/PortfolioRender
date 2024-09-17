@@ -10,21 +10,15 @@ from flask import (
 from flask_caching import Cache
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf.csrf import CSRFProtect, CSRFError
-from transformers import pipeline
+# from transformers import pipeline
 from werkzeug.utils import secure_filename
 from pythonjsonlogger import jsonlogger  # JSON logging
 from scipy.stats import linregress
 import matplotlib
 import numpy as np
 from matplotlib import pyplot as plt
-import torch
 
-# Lazy imports inside functions for memory efficiency
-# from PIL import Image, UnidentifiedImageError, Resampling
-# from skimage.color import rgb2gray
-# from reportlab.lib.pagesizes import letter
-# from reportlab.lib.units import inch
-# from reportlab.pdfgen import canvas
+# import torch
 
 # Configure matplotlib
 matplotlib.use('Agg')
@@ -55,7 +49,7 @@ app.config.update(
 # Initialize extensions
 csrf = CSRFProtect(app)
 db = SQLAlchemy(app)
-cache = Cache(app, config={'CACHE_TYPE': 'simple'})  # Replace with Redis for production
+cache = Cache(app, config={'CACHE_TYPE': 'simple'})  # Caching storage with Redis for production
 
 # Logging configuration
 logHandler = logging.StreamHandler()
@@ -73,7 +67,6 @@ faq_pipeline = pipeline(
 
 
 # Utility functions
-
 def allowed_file(filename):
     """Check if the uploaded file has an allowed extension."""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
@@ -121,6 +114,16 @@ def call_faq_pipeline(question, context):
         'question': question,
         'context_snippet': context[:100]  # Log only a snippet of context for brevity
     })
+    # Lazy-load the model
+    global faq_pipeline
+    if 'faq_pipeline' not in globals():
+        from transformers import pipeline
+        import torch
+        faq_pipeline = pipeline(
+            "question-answering",
+            model="distilbert-base-cased-distilled-squad",
+            device=0 if torch.cuda.is_available() else -1
+        )
     return faq_pipeline(question=question, context=context)
 
 
@@ -134,7 +137,6 @@ def safe_redirect(endpoint):
 
 
 # Structured Logging for Requests and Responses
-
 def log_request():
     """Log incoming requests with structured data."""
     app.logger.info({
@@ -158,7 +160,6 @@ def log_response(response):
 
 
 # Flask routes
-
 @app.before_request
 def before_request():
     """Actions to perform before each request."""
@@ -251,12 +252,17 @@ async def chatbot_answer():
         static_context = (
             "My name is Paul Coleman. I am an AI and ML Engineer with expertise in Artificial Intelligence and "
             "Machine Learning. I have experience in Python, Java, and AI/ML frameworks like TensorFlow and PyTorch. "
-            "I studied at Utah Valley University. Most Recent Professional Work Experience or Job Title: Full Stack Web Developer. "
-            "Tools used as a full stack web developer: ASP.NET Core. Graduated with a Bachelor of Science in Computer Science in August 2022. "
-            "I am currently a graduate student pursuing a master's degree in Computer Science and will graduate with a master's degree in Fall 2025. "
-            "Studied mathematics and statistics: discrete mathematics, numerical analysis, probabilities and statistical analysis, data analysis, "
-            "calculus, and linear algebra. Paul's Web Development Skills and Experience: Flask, C#, PHP, Search Engine Optimization, User Experience "
-            "Design, User Interface Design, Responsive Design, Postgres, Git, Swift. Core Programming Languages: [Python, C#, Java, SQL, HTML5/CSS3, JavaScript]."
+            "I studied at Utah Valley University. Most Recent Professional Work Experience or Job Title: Full Stack "
+            "Web Developer."
+            "Tools used as a full stack web developer: ASP.NET Core. Graduated with a Bachelor of Science in Computer "
+            "Science in August 2022."
+            "I am currently a graduate student pursuing a master's degree in Computer Science and will graduate with "
+            "a master's degree in Fall 2025."
+            "Studied mathematics and statistics: discrete mathematics, numerical analysis, probabilities and "
+            "statistical analysis, data analysis, calculus, and linear algebra. Paul's Web Development Skills and "
+            "Experience: Flask, C#, PHP, Search Engine Optimization, User Experience"
+            "Design, User Interface Design, Responsive Design, Postgres, Git, Swift. Core Programming Languages: ["
+            "Python, C#, Java, SQL, HTML5/CSS3, JavaScript]."
         )
 
         # Maintain conversation history in the session
@@ -371,24 +377,23 @@ async def fractal():
     return render_template('fractal.html')
 
 
+
 def calculate_fractal_dimension(image_path):
     """Calculate the fractal dimension of an image and save relevant images."""
     try:
         from PIL import Image
         from skimage.color import rgb2gray
-
         with Image.open(image_path) as image:
             image_gray, image_binary = process_image(image)
-
         # Perform box counting
         fractal_dimension, log_box_sizes, log_box_counts, intercept = perform_box_counting(image_binary)
-
+        # Delete large variables
+        del image_binary
         # Save images and analysis graph
-        image_paths = save_images(image, image_gray, image_binary, fractal_dimension, log_box_sizes, log_box_counts,
-                                  intercept)
-
+        image_paths = save_images(image, image_gray, None, fractal_dimension, log_box_sizes, log_box_counts, intercept)
+        # Delete more variables
+        del image_gray
         return fractal_dimension, image_paths
-
     except Exception as e:
         app.logger.error(f"Error calculating fractal dimension: {str(e)}",
                          extra={'action': 'fractal_calculation_error'})
@@ -399,18 +404,17 @@ def process_image(image):
     """Convert image to grayscale and binary formats."""
     try:
         from skimage.color import rgb2gray
-
         app.logger.info("Converting image to grayscale", extra={'action': 'image_processing'})
-        # Resize and convert to RGB if necessary
-        image = image.resize((1024, 1024))
+        # Resize to a smaller size, e.g., 512x512
+        image = image.resize((512, 512))
         if image.mode == 'RGBA':
             image = image.convert('RGB')  # Ensure it's in RGB mode
-
-        image_gray = rgb2gray(np.array(image))
+        image_array = np.array(image, dtype=np.float32)  # Use float32
+        image_gray = rgb2gray(image_array)
         app.logger.info("Converting image to binary", extra={'action': 'image_processing'})
         image_binary = image_gray < 0.5
+        del image_array  # Free memory
         return image_gray, image_binary
-
     except Exception as e:
         app.logger.error(f"Error processing image: {str(e)}", extra={'action': 'image_processing_error'})
         raise
@@ -431,6 +435,7 @@ def perform_box_counting(image_binary):
                 np.add.reduceat(image_binary, np.arange(0, image_binary.shape[0], size), axis=0),
                 np.arange(0, image_binary.shape[1], size), axis=1)
             counts.append(np.count_nonzero(covered_boxes > 0))
+            del covered_boxes  # Free memory after use
 
         # Log-transform box sizes and counts
         log_box_sizes, log_box_counts = np.log(unique_sizes), np.log(counts)
@@ -512,7 +517,6 @@ def save_fractal_analysis_graph(log_box_sizes, log_box_counts, fractal_dimension
         app.logger.error(f"Error saving fractal dimension analysis graph: {str(e)}",
                          extra={'action': 'save_plot_error'})
         raise
-
 
 
 def generate_report(fractal_dimension, image_paths):
@@ -613,7 +617,6 @@ def resize_image(image_path, max_size=(1024, 1024)):
         return None
 
 
-# Entry point
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 5000))  # Render provides the PORT variable; default to 5000 if not set
-    app.run(debug=True, host='0.0.0.0', port=port)
+    app.run(debug=False, host='0.0.0.0', port=port)
