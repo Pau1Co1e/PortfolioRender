@@ -58,12 +58,12 @@ logHandler.setFormatter(formatter)
 app.logger.addHandler(logHandler)
 app.logger.setLevel(logging.INFO)
 
-# Preload the AI model
-faq_pipeline = pipeline(
-    "question-answering",
-    model="distilbert-base-cased-distilled-squad",
-    device=0 if torch.cuda.is_available() else -1
-)
+# # Preload the AI model
+# faq_pipeline = pipeline(
+#     "question-answering",
+#     model="distilbert-base-cased-distilled-squad",
+#     device=0 if torch.cuda.is_available() else -1
+# )
 
 
 # Utility functions
