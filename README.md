@@ -31,15 +31,13 @@ Welcome to my personal portfolio website, designed to showcase my skills, projec
 
 ## View the Website Online
 
-- ### Visit the live website by clicking [here](https://portfoliorender-p89i.onrender.com). 
+- ### Visit the live website: [CodeBloodedFamily](https://CodeBloodedFamily.com). 
 - ### Visit GitHub Pages: [here](https://github.com/Pau1Co1e).
-- ### For questions or comments [contact](https://portfoliorender-p89i.onrender.com/contact) me or talk to live [chatbot](https://portfoliorender-p89i.onrender.com/experience).
+- ### For questions or comments [contact](https://CodeBloodedFamily.com/contact) me or head over to my projects page and ask my chatbot [chatbot](https://CodeBloodedFamily.com/experience).
 
 
-## Please be aware, due to the limitations of free dynamic hosting services, it may take up to 50 seconds or more for page to initially load due to server spin up.
-## Furthermore, some functions are disabled or simple don't work when viewing GitHub Pages; a limitation of static hosting services. 
+## Run the Website Locally
 
-### Run the Website Locally
 1. Clone the repository to your local machine:
    ```bash
    git clone https://github.com/Pau1Co1e/Pau1Co1e.github.io.git
