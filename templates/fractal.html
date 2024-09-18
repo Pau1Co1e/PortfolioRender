@@ -47,7 +47,7 @@
 <body>
     <div class="container">
         <h1>Fractal Dimension Calculator</h1>
-        <form id="fractal-form" method="post" enctype="multipart/form-data">
+        <form id="fractal-form" method="post" enctype="multipart/form-data" action="{{ url_for('fractal') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <label for="file">Upload Image</label>
             <input class="form-control" type="file" id="file" name="file" accept="image/*" required>
@@ -74,7 +74,8 @@
                         <a class="nav-link {% if request.endpoint == 'about_me' %}active{% endif %}" href="{{ url_for('about_me') }}">About Me</a>
                     </li>
                     <li>
-                        <a class="nav-link {% if request.endpoint == 'experience' %}active{% endif %}" href="{{ url_for('experience') }}">Projects</a>                    </li>
+                        <a class="nav-link {% if request.endpoint == 'experience' %}active{% endif %}" href="{{ url_for('experience') }}">Projects</a>
+                    </li>
                     <li>
                         <a class="nav-link {% if request.endpoint == 'contact' %}active{% endif %}" href="{{ url_for('contact') }}">Contact Me</a>
                     </li>
@@ -97,7 +98,7 @@
         © 2024 Paul Coleman. All rights reserved.
     </div>
 </footer>
-<script src="{{ url_for('static', filename='js/fractal-form.min.js') }}"></script>
+{#<script src="{{ url_for('static', filename='js/fractal-form.min.js') }}"></script>#}
 <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha384-1H217gwSVyLSIfaLxHbE7dRb3v4mYCKbpQvzx0cegeju1MVsGrX5xXxAvs/HgeFs" crossorigin="anonymous"></script>
 <script src="{{ url_for('static', filename='js/script.min.js') }}"></script>
 <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.10.2/dist/umd/popper.min.js"></script>
