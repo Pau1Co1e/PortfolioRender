@@ -390,32 +390,26 @@ def calculate_fractal_dimension(image_path):
     """Calculate the fractal dimension of an image and save relevant images."""
     try:
         from PIL import Image
-
         with Image.open(image_path) as image:
-            image_gray, image_binary = process_image(image)
-
+            resized_image, image_gray, image_binary = process_image(image)
         # Perform box counting
         fractal_dimension, log_box_sizes, log_box_counts, intercept = perform_box_counting(image_binary)
-
-        # Delete image_binary after box counting
+        # Delete large variables
         del image_binary
-
-        # Save images and analysis graph
-        image_paths = save_images(image, image_gray, fractal_dimension, log_box_sizes, log_box_counts, intercept)
-
-        # Delete image_gray after saving images
+        # Save images and analysis graph using the resized image
+        image_paths = save_images(resized_image, image_gray, None, fractal_dimension, log_box_sizes, log_box_counts, intercept)
+        # Delete more variables
         del image_gray
-
+        del resized_image
         return fractal_dimension, image_paths
-
     except Exception as e:
-        app.logger.error(f"Error calculating fractal dimension: {str(e)}",
-                         extra={'action': 'fractal_calculation_error'})
+        app.logger.error(f"Error calculating fractal dimension: {str(e)}", extra={'action': 'fractal_calculation_error'})
         raise
 
 
+
 def process_image(image):
-    """Convert image to grayscale and binary formats."""
+    """Resize and convert image to grayscale and binary formats."""
     try:
         app.logger.info("Converting image to grayscale", extra={'action': 'image_processing'})
 
@@ -424,22 +418,25 @@ def process_image(image):
 
         # Convert to grayscale if not already
         if image.mode != 'L':
-            image = image.convert('L')
+            image_gray_image = image.convert('L')
+        else:
+            image_gray_image = image.copy()
 
         # Convert image to NumPy array and normalize
-        image_gray = np.array(image, dtype=np.float32) / 255.0  # Normalize to [0, 1]
+        image_gray = np.array(image_gray_image, dtype=np.float32) / 255.0  # Normalize to [0, 1]
         app.logger.info(f"image_gray type: {type(image_gray)}, shape: {image_gray.shape}")
 
         # Create binary image
         image_binary = image_gray < 0.5
         app.logger.info(f"image_binary type: {type(image_binary)}, shape: {image_binary.shape}")
 
-        # Do not delete image_gray here since we need to return it
-        return image_gray, image_binary
+        # Return resized image, image_gray, image_binary
+        return image, image_gray, image_binary
 
     except Exception as e:
         app.logger.error(f"Error processing image: {str(e)}", extra={'action': 'image_processing_error'})
         raise
+
 
 
 def perform_box_counting(image_binary):
@@ -474,11 +471,11 @@ def perform_box_counting(image_binary):
         raise
 
 
-def save_images(image, image_gray, fractal_dimension, log_box_sizes, log_box_counts, intercept):
-    """Save the original and grayscale images, and the fractal dimension analysis graph."""
+def save_images(image, image_gray, image_binary, fractal_dimension, log_box_sizes, log_box_counts, intercept):
+    """Save the resized original image, grayscale image, and the fractal dimension analysis graph."""
     try:
+        from matplotlib import pyplot as plt
         import os
-        import matplotlib.pyplot as plt
 
         static_folder = app.config['UPLOAD_FOLDER']
         os.makedirs(static_folder, exist_ok=True)
@@ -489,7 +486,7 @@ def save_images(image, image_gray, fractal_dimension, log_box_sizes, log_box_cou
             'analysis': os.path.join(static_folder, 'analysis.png')
         }
 
-        # Save the original image
+        # Save the resized original image
         image.save(image_paths['original'])
 
         # Save the grayscale image
@@ -505,6 +502,7 @@ def save_images(image, image_gray, fractal_dimension, log_box_sizes, log_box_cou
     except Exception as e:
         app.logger.error(f"Error saving images: {str(e)}", extra={'action': 'save_images_error'})
         raise
+
 
 
 def save_fractal_analysis_graph(log_box_sizes, log_box_counts, fractal_dimension, intercept, plot_path):
@@ -546,6 +544,7 @@ def generate_report(fractal_dimension, image_paths):
         from reportlab.lib.pagesizes import letter
         from reportlab.lib.units import inch
         from reportlab.pdfgen import canvas
+        import gc
 
         pdf_path = os.path.join(app.config['UPLOAD_FOLDER'], 'fractal_report.pdf')
         c = canvas.Canvas(pdf_path, pagesize=letter)
@@ -578,7 +577,10 @@ def generate_report(fractal_dimension, image_paths):
                 x, y = positions[i]
                 c.drawImage(path, x, y, width=image_width, height=image_height, preserveAspectRatio=True, mask='auto')
                 c.setFont("Helvetica", 10)
-                c.drawCentredString(x + image_width / 2, y - 0.2 * inch, labels[i])  # Label below each image
+                c.drawCentredString(x + image_width / 2, y - 0.2 * inch, labels[i])
+                # Delete the image after use
+                del path
+                gc.collect()
             else:
                 app.logger.error(f"Image path is invalid or file does not exist: {path}",
                                  extra={'action': 'missing_image', 'path': path})
@@ -640,4 +642,4 @@ def resize_image(image_path, max_size=(1024, 1024)):
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 5000))  # Render provides the PORT variable; default to 5000 if not set
-    app.run(debug=True, host='0.0.0.0', port=port)
+    app.run(debug=False, host='0.0.0.0', port=port)
