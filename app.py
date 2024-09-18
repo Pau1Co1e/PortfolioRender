@@ -4,25 +4,28 @@ import logging
 import asyncio
 import re
 import uuid
+import torch
 from flask import (
     Flask, render_template, request, jsonify, flash, redirect, url_for,
     send_file, session, send_from_directory, Response
 )
 from flask_caching import Cache
 from flask_sqlalchemy import SQLAlchemy
-from flask_wtf.csrf import CSRFProtect, CSRFError
 from werkzeug.utils import secure_filename
 from pythonjsonlogger import jsonlogger  # JSON logging
 from scipy.stats import linregress
-import matplotlib
+# import matplotlib
 import numpy as np
 from matplotlib import pyplot as plt
-import torch
+import mimetypes
+# import torch
 from transformers import pipeline
-
+from flask_wtf.csrf import CSRFProtect
 # faq_pipeline = None
 
 # Configure matplotlib
+import matplotlib
+
 matplotlib.use('Agg')
 
 # Flask app configuration
@@ -36,20 +39,50 @@ ALLOWED_REDIRECTS = {
 
 # App settings
 app.secret_key = os.getenv('SECRET_KEY', 'your_default_secret_key')
+
+if app.config.get("ENV", "development") == "production":
+    app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv('DATABASE_URL')
+else:
+    app.config["SQLALCHEMY_DATABASE_URI"] = 'sqlite:///site.db'
+
 app.config.update(
     UPLOAD_FOLDER=os.path.join(app.root_path, 'static/uploads/'),
     VIDEO_FOLDER=os.path.join(app.root_path, 'static/videos/'),
     MAX_CONTENT_LENGTH=16 * 1024 * 1024,  # Limit file size to 16MB
     ALLOWED_EXTENSIONS={'png', 'jpg', 'jpeg', 'gif', 'svg'},
-    SQLALCHEMY_DATABASE_URI=os.getenv('DATABASE_URL', 'sqlite:///site.db'),
     SQLALCHEMY_TRACK_MODIFICATIONS=False,
     SESSION_COOKIE_SECURE=True,  # Set to True if using HTTPS in production
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE='Lax',
 )
 
-# Initialize extensions
+# Initialize CSRF protection
 csrf = CSRFProtect(app)
+
+
+@app.errorhandler(400)
+def bad_request(error):
+    app.logger.error(f"Bad Request: {error}", extra={'action': 'bad_request'})
+    return f"Bad Request: {error} 400", 400
+
+
+@app.errorhandler(500)
+def server_error(error):
+    app.logger.error(f"Server Error: {error}", extra={'action': 'server_error'})
+    return f"Server Error: {error} 500", 500
+
+
+# Handle CSRF errors without CSRFError import
+@app.errorhandler(400)
+def handle_csrf_error(e):
+    if hasattr(e, 'description') and 'CSRF' in e.description:
+        app.logger.error(f"CSRF Error: {e.description}", extra={'action': 'csrf_error'})
+        return render_template('csrf_error.html', reason=e.description), 400
+    return "Bad Request", 400
+
+
+# Initialize extensions
+# csrf = CSRFProtect(app)
 db = SQLAlchemy(app)
 cache = Cache(app, config={'CACHE_TYPE': 'simple'})  # Caching storage with Redis for production
 
@@ -60,7 +93,7 @@ logHandler.setFormatter(formatter)
 app.logger.addHandler(logHandler)
 app.logger.setLevel(logging.INFO)
 
-global faq_pipeline
+# global faq_pipeline
 # Preload the AI model
 faq_pipeline = pipeline(
     "question-answering",
@@ -70,9 +103,14 @@ faq_pipeline = pipeline(
 
 
 # Utility functions
+# def allowed_file(filename):
+#     """Check if the uploaded file has an allowed extension."""
+#     return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 def allowed_file(filename):
-    """Check if the uploaded file has an allowed extension."""
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
+    allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'svg'}
+    mime_type, _ = mimetypes.guess_type(filename)
+    return mime_type in ['image/png', 'image/jpeg', 'image/gif', 'image/svg+xml'] and \
+        '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
 
 
 def validate_and_save_file(requested):
@@ -120,17 +158,18 @@ def call_faq_pipeline(question, context):
         'question': question,
         'context_snippet': context[:100]
     })
-    # global faq_pipeline
-    # if faq_pipeline is None:
-    # faq_pipeline = pipeline(
-    #     "question-answering",
-    #     model="distilbert-base-cased-distilled-squad",
-    #     device=0 if torch.cuda.is_available() else -1
-    # )
+
     # Set model to evaluation mode
     faq_pipeline.model.eval()
+    # Ensure the inputs are passed as a dictionary
+    inputs = {
+        "question": question,
+        "context": context
+    }
+    # Perform inference with torch.no_grad() for efficiency
     with torch.no_grad():
-        result = faq_pipeline(question=question, context=context)
+        result = faq_pipeline(inputs)
+    # Return the result
     return result
 
 
@@ -190,10 +229,19 @@ def bad_request(error):
     return f"Bad Request: {error} 400", 400
 
 
-@app.errorhandler(CSRFError)
+@app.errorhandler(500)
+def internal_error(error):
+    app.logger.error(f"Server Error: {error}")
+    return "Internal Server Error", 500
+
+
+@app.errorhandler(400)
 def handle_csrf_error(e):
-    app.logger.error(f"CSRF Error: {e.description}", extra={'action': 'csrf_error'})
-    return render_template('csrf_error.html', reason=e.description), 400
+    # Check if the error is related to CSRF
+    if 'CSRF' in str(e):
+        app.logger.error(f"CSRF Error: {str(e)}", extra={'action': 'csrf_error'})
+        return render_template('csrf_error.html', reason="CSRF token is missing or incorrect"), 400
+    return "Bad Request", 400
 
 
 @app.route('/')
@@ -467,7 +515,7 @@ def perform_box_counting(image_binary):
             del covered_boxes  # Free memory after use
         # Log-transform box sizes and counts
         log_box_sizes, log_box_counts = np.log(unique_sizes), np.log(counts)
-        # Perform linear regression on uncentered data
+        # Perform linear regression on un-centered data
         slope, intercept, r_value, p_value, std_err = linregress(log_box_sizes, log_box_counts)
         fractal_dimension = -slope  # Fractal dimension is the negative slope
         app.logger.info(f"Fractal dimension calculated: {fractal_dimension}, R-squared: {r_value ** 2}",
@@ -602,9 +650,11 @@ def generate_report(fractal_dimension, image_paths):
             else:
                 app.logger.error(f"Image path is invalid: {path}", extra={'action': 'missing_image', 'path': path})
 
-        # Footer
-        c.setFont("Helvetica", 10)
-        c.drawString(inch, inch / 2, "Generated by Fractal Dimension Calculator")
+        # Add the hyperlink to navigate back to the projects page
+        c.setFont("Helvetica-Bold", 12)
+        link_url = url_for('experience', _external=True)  # URL for the projects page
+        c.drawString(inch, inch, "Click here to go back to the Projects page")
+        c.linkURL(link_url, (inch, inch - 0.2 * inch, 4 * inch, inch + 0.2 * inch))
 
         # Save PDF
         c.save()

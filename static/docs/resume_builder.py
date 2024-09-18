@@ -12,7 +12,6 @@ class ResumeMaker:
         self.pdf = FPDF()
 
 
-# Function to sanitize text for FPDF
 def sanitize_text(text):
     replacements = {
         "\u2013": "-",  # en-dash
@@ -29,11 +28,9 @@ def sanitize_text(text):
 
     for unicode_char, replacement in replacements.items():
         text = text.replace(unicode_char, replacement)
-
     return text
 
 
-# Function to create PDF resume (government or non-government formatted)
 def create_pdf_resume(filename, is_government_format=True):
     pdf = FPDF()
     pdf.add_page()
@@ -48,7 +45,8 @@ def create_pdf_resume(filename, is_government_format=True):
     # Add hyperlinks for portfolio and GitHub
     pdf.set_font('Helvetica', 'U', 12)
     pdf.set_text_color(0, 0, 255)
-    pdf.cell(200, 10, 'Portfolio Website', new_x=XPos.LMARGIN, new_y=YPos.NEXT, align='C', link='https://portfoliorender-p89i.onrender.com')
+    pdf.cell(200, 10, 'Portfolio Website', new_x=XPos.LMARGIN, new_y=YPos.NEXT, align='C',
+             link='https://CodeBloodedFamily.com')
     pdf.cell(200, 10, 'GitHub', new_x=XPos.LMARGIN, new_y=YPos.NEXT, align='C', link='https://github.com/Pau1Co1e')
 
     if is_government_format:
@@ -106,7 +104,8 @@ def create_pdf_resume(filename, is_government_format=True):
 
     if is_government_format:
         pdf.cell(0, 10, 'ResNexus, Salem, UT | Sept 2023 - Dec 2023', new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-        pdf.cell(0, 10, 'Salary: $70,000 per year | Hours per Week: 40 | Full-Time', new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.cell(0, 10, 'Salary: $70,000 per year | Hours per Week: 40 | Full-Time', new_x=XPos.LMARGIN,
+                 new_y=YPos.NEXT)
         pdf.cell(0, 10, 'Supervisor: Kaycee Gibson, (801) 671-8760', new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
     pdf.multi_cell(0, 10, sanitize_text(
@@ -126,7 +125,8 @@ def create_pdf_resume(filename, is_government_format=True):
         pdf.cell(0, 10, 'Utah Valley University College of Engineering', new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
     if is_government_format:
-        pdf.cell(0, 10, 'Utah Valley University College of Engineering | Jan 2021 - Dec 2021', new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.cell(0, 10, 'Utah Valley University College of Engineering | Jan 2021 - Dec 2021', new_x=XPos.LMARGIN,
+                 new_y=YPos.NEXT)
         pdf.cell(0, 10, 'Salary: $20 per hour | Hours per Week: 30 | Part-Time', new_x=XPos.LMARGIN, new_y=YPos.NEXT)
         pdf.cell(0, 10, 'Supervisor: Kazem Sohraby, (605) 786-5856', new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
@@ -146,7 +146,8 @@ def create_pdf_resume(filename, is_government_format=True):
     if is_government_format is False:
         pdf.cell(0, 10, 'Utah Valley University Department of Computer Science', new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     if is_government_format:
-        pdf.cell(0, 10, 'Utah Valley University Department of Computer Science | Jan 2020 - Dec 2020', new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.cell(0, 10, 'Utah Valley University Department of Computer Science | Jan 2020 - Dec 2020',
+                 new_x=XPos.LMARGIN, new_y=YPos.NEXT)
         pdf.cell(0, 10, 'Salary: $15 per hour | Hours per Week: 25 | Part-Time', new_x=XPos.LMARGIN, new_y=YPos.NEXT)
         pdf.cell(0, 10, 'Supervisor: Terry Hill, (801) 863-8218', new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
@@ -226,7 +227,8 @@ def create_pdf_resume(filename, is_government_format=True):
         pdf.cell(0, 10, 'VOLUNTEER EXPERIENCE / COMMUNITY SERVICE', new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
         pdf.set_font('Helvetica', 'B', 12)
-        pdf.cell(0, 10, 'Norther Utah Habitat for Humanity | Clothing Drive | June 2014', new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.cell(0, 10, 'Norther Utah Habitat for Humanity | Clothing Drive | June 2014', new_x=XPos.LMARGIN,
+                 new_y=YPos.NEXT)
         pdf.set_font('Helvetica', '', 12)
         pdf.multi_cell(0, 10, sanitize_text(
             "Assisted in organized donation event for Habitat for Humanity at Utah State University, providing "
@@ -435,7 +437,6 @@ def add_hyperlink(paragraph, text, url):
 
 # Main driver function to generate both formats
 def main():
-
     # Government formatted resumes
     create_pdf_resume("government_resume.pdf", is_government_format=True)
     create_docx_resume("government_resume.docx", is_government_format=True)

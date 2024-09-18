@@ -1,21 +1,16 @@
 // $('form').on('submit', function(event) {
 //     event.preventDefault();  // Prevent the form from submitting normally
-
 //     const fileInput = document.getElementById('file');
 //     const file = fileInput.files[0];
-
 //     if (!file) {
 //         alert('Please select a file.');
 //         return;
 //     }
-
 //     const formData = new FormData();
 //     formData.append('file', file);
-
 //     // Get the CSRF token from the form
 //     const csrfToken = $('input[name="csrf_token"]').val();
 //     formData.append('csrf_token', csrfToken);
-
 //     $.ajax({
 //         url: '/fractal_report',
 //         type: 'POST',
