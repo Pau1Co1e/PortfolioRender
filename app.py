@@ -3,6 +3,7 @@ import datetime
 import logging
 import asyncio
 import re
+import uuid
 from flask import (
     Flask, render_template, request, jsonify, flash, redirect, url_for,
     send_file, session, send_from_directory, Response
@@ -10,7 +11,6 @@ from flask import (
 from flask_caching import Cache
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf.csrf import CSRFProtect, CSRFError
-# from transformers import pipeline
 from werkzeug.utils import secure_filename
 from pythonjsonlogger import jsonlogger  # JSON logging
 from scipy.stats import linregress
@@ -306,16 +306,16 @@ def serve_video(filename):
     video_path = os.path.join(app.config['VIDEO_FOLDER'], filename)
 
     if not os.path.exists(video_path):
-        app.logger.error(f"File not found: {video_path}", extra={'action': 'serve_video_error', 'filename': filename})
+        app.logger.error(f"File not found: {video_path}", extra={'action': 'serve_video_error', 'file_name': filename})
         return "File not found", 404
 
     try:
         response = partial_response(video_path, range_header)
-        app.logger.info(f"Serving video file: {filename}", extra={'action': 'serve_video', 'filename': filename})
+        app.logger.info(f"Serving video file: {filename}", extra={'action': 'serve_video', 'file_name': filename})
         return response
     except Exception as e:
         app.logger.error(f"Error serving video file: {e}",
-                         extra={'action': 'serve_video_exception', 'filename': filename})
+                         extra={'action': 'serve_video_exception', 'file_name': filename})
         return "Internal Server Error", 500
 
 
@@ -351,38 +351,35 @@ def partial_response(file_path, range_header):
 
 @app.route('/fractal', methods=['GET', 'POST'])
 @csrf.exempt
-async def fractal():
+def fractal():
     if request.method == 'POST':
         try:
             # Validate and save the uploaded file
             file_path = validate_and_save_file(request)
 
-            # Get the current event loop
-            loop = asyncio.get_event_loop()
+            # Perform fractal dimension calculation
+            fractal_dimension, image_urls, image_file_paths = calculate_fractal_dimension(file_path)
 
-            # Perform fractal dimension calculation asynchronously
-            fractal_dimension, image_paths = await loop.run_in_executor(None, calculate_fractal_dimension, file_path)
-
-            # Generate PDF report asynchronously
-            pdf_path = await loop.run_in_executor(None, generate_report, fractal_dimension, image_paths)
+            # Generate PDF report
+            pdf_url = generate_report(fractal_dimension, image_file_paths)
 
             app.logger.info(f"Fractal dimension calculated: {fractal_dimension}",
                             extra={'action': 'fractal_calculated'})
 
-            # Render result template with the download link
+            # Render the result template with context data
             return render_template(
                 'fractal_result.html',
                 fractal_dimension=fractal_dimension,
-                image_paths=image_paths,
-                pdf_path=pdf_path
+                image_paths=image_urls,
+                pdf_url=pdf_url
             )
 
         except ValueError as e:
             app.logger.error(f'Error processing image: {e}', extra={'action': 'fractal_error'})
             flash(str(e), 'danger')
-            return safe_redirect('fractal')
+            return redirect(url_for('fractal'))
 
-    app.logger.info("Rendered fractal page", extra={'action': 'render_page', 'page': 'fractal'})
+    # For GET requests, render the fractal.html template
     return render_template('fractal.html')
 
 
@@ -397,15 +394,16 @@ def calculate_fractal_dimension(image_path):
         # Delete large variables
         del image_binary
         # Save images and analysis graph using the resized image
-        image_paths = save_images(resized_image, image_gray, None, fractal_dimension, log_box_sizes, log_box_counts, intercept)
+        image_urls, image_file_paths = save_images(resized_image, image_gray, None, fractal_dimension, log_box_sizes,
+                                                   log_box_counts, intercept)
         # Delete more variables
         del image_gray
         del resized_image
-        return fractal_dimension, image_paths
+        return fractal_dimension, image_urls, image_file_paths
     except Exception as e:
-        app.logger.error(f"Error calculating fractal dimension: {str(e)}", extra={'action': 'fractal_calculation_error'})
+        app.logger.error(f"Error calculating fractal dimension: {str(e)}",
+                         extra={'action': 'fractal_calculation_error'})
         raise
-
 
 
 def process_image(image):
@@ -436,7 +434,6 @@ def process_image(image):
     except Exception as e:
         app.logger.error(f"Error processing image: {str(e)}", extra={'action': 'image_processing_error'})
         raise
-
 
 
 def perform_box_counting(image_binary):
@@ -472,7 +469,7 @@ def perform_box_counting(image_binary):
 
 
 def save_images(image, image_gray, image_binary, fractal_dimension, log_box_sizes, log_box_counts, intercept):
-    """Save the resized original image, grayscale image, and the fractal dimension analysis graph."""
+    """Save the images with unique filenames and return their URLs and file paths."""
     try:
         from matplotlib import pyplot as plt
         import os
@@ -480,29 +477,35 @@ def save_images(image, image_gray, image_binary, fractal_dimension, log_box_size
         static_folder = app.config['UPLOAD_FOLDER']
         os.makedirs(static_folder, exist_ok=True)
 
-        image_paths = {
-            'original': os.path.join(static_folder, 'original.png'),
-            'grayscale': os.path.join(static_folder, 'grayscale.png'),
-            'analysis': os.path.join(static_folder, 'analysis.png')
+        unique_id = str(uuid.uuid4())
+
+        image_filenames = {
+            'original': f'original_{unique_id}.png',
+            'grayscale': f'grayscale_{unique_id}.png',
+            'analysis': f'analysis_{unique_id}.png'
         }
 
-        # Save the resized original image
+        image_paths = {key: os.path.join(static_folder, filename) for key, filename in image_filenames.items()}
+
+        # Save images
         image.save(image_paths['original'])
-
-        # Save the grayscale image
         plt.imsave(image_paths['grayscale'], image_gray, cmap='gray')
-
-        # Save the fractal analysis graph
         save_fractal_analysis_graph(log_box_sizes, log_box_counts, fractal_dimension, intercept,
                                     image_paths['analysis'])
 
+        # Convert file paths to URLs
+        image_urls = {
+            key: url_for('uploaded_file', filename=filename)
+            for key, filename in image_filenames.items()
+        }
+
+        # Return both URLs and file paths
         app.logger.info(f"Images saved successfully: {image_paths}", extra={'action': 'images_saved'})
-        return image_paths
+        return image_urls, image_paths
 
     except Exception as e:
         app.logger.error(f"Error saving images: {str(e)}", extra={'action': 'save_images_error'})
         raise
-
 
 
 def save_fractal_analysis_graph(log_box_sizes, log_box_counts, fractal_dimension, intercept, plot_path):
@@ -544,10 +547,13 @@ def generate_report(fractal_dimension, image_paths):
         from reportlab.lib.pagesizes import letter
         from reportlab.lib.units import inch
         from reportlab.pdfgen import canvas
-        import gc
+        import os
 
-        pdf_path = os.path.join(app.config['UPLOAD_FOLDER'], 'fractal_report.pdf')
+        pdf_filename = f'fractal_report_{str(uuid.uuid4())}.pdf'
+        pdf_path = os.path.join(app.config['UPLOAD_FOLDER'], pdf_filename)
         c = canvas.Canvas(pdf_path, pagesize=letter)
+
+        # Unpack the page size into width and height
         width, height = letter
 
         # Title
@@ -565,25 +571,26 @@ def generate_report(fractal_dimension, image_paths):
         positions = [
             (inch, height - 2 * inch - image_height),  # Top-left (Original)
             (4.5 * inch, height - 2 * inch - image_height),  # Top-right (Grayscale)
-            (inch, height - 2 * inch - 2 * image_height - 0.5 * inch),  # Bottom-left (Binary)
-            (4.5 * inch, height - 2 * inch - 2 * image_height - 0.5 * inch)  # Bottom-right (Analysis)
+            (inch, height - 2 * inch - 2 * image_height - 0.5 * inch),  # Bottom-left (Analysis)
         ]
 
-        labels = ['Original Image', 'Grayscale Image', 'Binary Image', 'Fractal Dimension Analysis']
+        labels = ['Original Image', 'Grayscale Image', 'Fractal Analysis']
 
         # Draw images and labels
         for i, (key, path) in enumerate(image_paths.items()):
-            if path and os.path.exists(path):
-                x, y = positions[i]
-                c.drawImage(path, x, y, width=image_width, height=image_height, preserveAspectRatio=True, mask='auto')
-                c.setFont("Helvetica", 10)
-                c.drawCentredString(x + image_width / 2, y - 0.2 * inch, labels[i])
-                # Delete the image after use
-                del path
-                gc.collect()
+            if path:
+                image_file_path = os.path.join(app.config['UPLOAD_FOLDER'], os.path.basename(path))
+                if os.path.exists(image_file_path):
+                    x, y = positions[i]
+                    c.drawImage(image_file_path, x, y, width=image_width, height=image_height, preserveAspectRatio=True,
+                                mask='auto')
+                    c.setFont("Helvetica", 10)
+                    c.drawCentredString(x + image_width / 2, y - 0.2 * inch, labels[i])
+                else:
+                    app.logger.error(f"Image file does not exist: {image_file_path}",
+                                     extra={'action': 'missing_image', 'path': image_file_path})
             else:
-                app.logger.error(f"Image path is invalid or file does not exist: {path}",
-                                 extra={'action': 'missing_image', 'path': path})
+                app.logger.error(f"Image path is invalid: {path}", extra={'action': 'missing_image', 'path': path})
 
         # Footer
         c.setFont("Helvetica", 10)
@@ -592,7 +599,11 @@ def generate_report(fractal_dimension, image_paths):
         # Save PDF
         c.save()
         app.logger.info(f"PDF generated successfully: {pdf_path}", extra={'action': 'pdf_generated'})
-        return pdf_path
+
+        # Convert file path to URL
+        pdf_url = url_for('uploaded_file', filename=pdf_filename)
+
+        return pdf_url
 
     except Exception as e:
         app.logger.error(f"Error generating PDF: {str(e)}", extra={'action': 'generate_pdf_error'})
@@ -613,14 +624,16 @@ def download_generated_report():
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
-    app.logger.info(f"Serving uploaded file: {filename}", extra={'action': 'serve_uploaded_file', 'filename': filename})
+    app.logger.info(f"Serving uploaded file: {filename}",
+                    extra={'action': 'serve_uploaded_file', 'file_name': filename})
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 
 def resize_image(image_path, max_size=(1024, 1024)):
+    from PIL.Image import UnidentifiedImageError
     """Resize the image to a specified maximum size and return the path."""
     try:
-        from PIL import Image, UnidentifiedImageError
+        from PIL import Image
         from PIL.Image import Resampling
 
         if os.path.isfile(image_path):
