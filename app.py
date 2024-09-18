@@ -18,6 +18,7 @@ import matplotlib
 import numpy as np
 from matplotlib import pyplot as plt
 
+faq_pipeline = None
 # import torch
 
 # Configure matplotlib
@@ -58,7 +59,8 @@ logHandler.setFormatter(formatter)
 app.logger.addHandler(logHandler)
 app.logger.setLevel(logging.INFO)
 
-# # Preload the AI model
+
+# Preload the AI model
 # faq_pipeline = pipeline(
 #     "question-answering",
 #     model="distilbert-base-cased-distilled-squad",
@@ -109,22 +111,25 @@ def preprocess_question(question):
 
 def call_faq_pipeline(question, context):
     """Invoke the FAQ pipeline model."""
+    from transformers import pipeline
+    import torch  # Import torch here
     app.logger.info({
         'action': 'faq_pipeline_called',
         'question': question,
-        'context_snippet': context[:100]  # Log only a snippet of context for brevity
+        'context_snippet': context[:100]
     })
-    # Lazy-load the model
     global faq_pipeline
-    if 'faq_pipeline' not in globals():
-        from transformers import pipeline
-        import torch
+    if faq_pipeline is None:
         faq_pipeline = pipeline(
             "question-answering",
             model="distilbert-base-cased-distilled-squad",
             device=0 if torch.cuda.is_available() else -1
         )
-    return faq_pipeline(question=question, context=context)
+        # Set model to evaluation mode
+        faq_pipeline.model.eval()
+    with torch.no_grad():
+        result = faq_pipeline(question=question, context=context)
+    return result
 
 
 def safe_redirect(endpoint):
@@ -265,11 +270,15 @@ async def chatbot_answer():
             "Python, C#, Java, SQL, HTML5/CSS3, JavaScript]."
         )
 
-        # Maintain conversation history in the session
+        # Maintain conversation history in the session (limit to last 3 questions)
         session['conversation_history'] = session.get('conversation_history', [])
         session['conversation_history'].append(question)
+        # Keep only the last 3 questions
+        session['conversation_history'] = session['conversation_history'][-3:]
+
         # Combine static context with conversation history to create full context
-        full_context = static_context + ' '.join(session['conversation_history'])
+        conversation_context = ' '.join(session['conversation_history'])
+        full_context = f"{static_context} {conversation_context}"
         app.logger.info(f"Full context prepared for chatbot", extra={'action': 'context_prepared'})
 
         # Perform the model inference asynchronously
@@ -377,23 +386,28 @@ async def fractal():
     return render_template('fractal.html')
 
 
-
 def calculate_fractal_dimension(image_path):
     """Calculate the fractal dimension of an image and save relevant images."""
     try:
         from PIL import Image
-        from skimage.color import rgb2gray
+
         with Image.open(image_path) as image:
             image_gray, image_binary = process_image(image)
+
         # Perform box counting
         fractal_dimension, log_box_sizes, log_box_counts, intercept = perform_box_counting(image_binary)
-        # Delete large variables
+
+        # Delete image_binary after box counting
         del image_binary
+
         # Save images and analysis graph
-        image_paths = save_images(image, image_gray, None, fractal_dimension, log_box_sizes, log_box_counts, intercept)
-        # Delete more variables
+        image_paths = save_images(image, image_gray, fractal_dimension, log_box_sizes, log_box_counts, intercept)
+
+        # Delete image_gray after saving images
         del image_gray
+
         return fractal_dimension, image_paths
+
     except Exception as e:
         app.logger.error(f"Error calculating fractal dimension: {str(e)}",
                          extra={'action': 'fractal_calculation_error'})
@@ -403,18 +417,26 @@ def calculate_fractal_dimension(image_path):
 def process_image(image):
     """Convert image to grayscale and binary formats."""
     try:
-        from skimage.color import rgb2gray
         app.logger.info("Converting image to grayscale", extra={'action': 'image_processing'})
+
         # Resize to a smaller size, e.g., 512x512
         image = image.resize((512, 512))
-        if image.mode == 'RGBA':
-            image = image.convert('RGB')  # Ensure it's in RGB mode
-        image_array = np.array(image, dtype=np.float32)  # Use float32
-        image_gray = rgb2gray(image_array)
-        app.logger.info("Converting image to binary", extra={'action': 'image_processing'})
+
+        # Convert to grayscale if not already
+        if image.mode != 'L':
+            image = image.convert('L')
+
+        # Convert image to NumPy array and normalize
+        image_gray = np.array(image, dtype=np.float32) / 255.0  # Normalize to [0, 1]
+        app.logger.info(f"image_gray type: {type(image_gray)}, shape: {image_gray.shape}")
+
+        # Create binary image
         image_binary = image_gray < 0.5
-        del image_array  # Free memory
+        app.logger.info(f"image_binary type: {type(image_binary)}, shape: {image_binary.shape}")
+
+        # Do not delete image_gray here since we need to return it
         return image_gray, image_binary
+
     except Exception as e:
         app.logger.error(f"Error processing image: {str(e)}", extra={'action': 'image_processing_error'})
         raise
@@ -423,42 +445,40 @@ def process_image(image):
 def perform_box_counting(image_binary):
     """Perform box counting and linear regression to estimate the fractal dimension."""
     try:
+        app.logger.info(f"image_binary type: {type(image_binary)}")
+        app.logger.info(f"image_binary shape: {image_binary.shape}")
+        # Proceed with box counting
         # Define box sizes
         min_box_size, max_box_size, n_sizes = 2, min(image_binary.shape) // 4, 10
         sizes = np.floor(np.logspace(np.log10(min_box_size), np.log10(max_box_size), num=n_sizes)).astype(int)
         unique_sizes = np.unique(sizes)
         counts = []
-
         # Perform box counting
         for size in unique_sizes:
+            # Process one size at a time to limit memory usage
             covered_boxes = np.add.reduceat(
                 np.add.reduceat(image_binary, np.arange(0, image_binary.shape[0], size), axis=0),
                 np.arange(0, image_binary.shape[1], size), axis=1)
             counts.append(np.count_nonzero(covered_boxes > 0))
             del covered_boxes  # Free memory after use
-
         # Log-transform box sizes and counts
         log_box_sizes, log_box_counts = np.log(unique_sizes), np.log(counts)
-
         # Perform linear regression on uncentered data
         slope, intercept, r_value, p_value, std_err = linregress(log_box_sizes, log_box_counts)
         fractal_dimension = -slope  # Fractal dimension is the negative slope
-
         app.logger.info(f"Fractal dimension calculated: {fractal_dimension}, R-squared: {r_value ** 2}",
                         extra={'action': 'box_counting_done'})
-
         return fractal_dimension, log_box_sizes, log_box_counts, intercept
-
     except Exception as e:
         app.logger.error(f"Error during box counting: {str(e)}", extra={'action': 'box_counting_error'})
         raise
 
 
-def save_images(image, image_gray, image_binary, fractal_dimension, log_box_sizes, log_box_counts, intercept):
-    """Save the original, grayscale, binary images, and the fractal dimension analysis graph."""
+def save_images(image, image_gray, fractal_dimension, log_box_sizes, log_box_counts, intercept):
+    """Save the original and grayscale images, and the fractal dimension analysis graph."""
     try:
-        from matplotlib import pyplot as plt
         import os
+        import matplotlib.pyplot as plt
 
         static_folder = app.config['UPLOAD_FOLDER']
         os.makedirs(static_folder, exist_ok=True)
@@ -466,13 +486,14 @@ def save_images(image, image_gray, image_binary, fractal_dimension, log_box_size
         image_paths = {
             'original': os.path.join(static_folder, 'original.png'),
             'grayscale': os.path.join(static_folder, 'grayscale.png'),
-            'binary': os.path.join(static_folder, 'binary.png'),
             'analysis': os.path.join(static_folder, 'analysis.png')
         }
 
+        # Save the original image
         image.save(image_paths['original'])
+
+        # Save the grayscale image
         plt.imsave(image_paths['grayscale'], image_gray, cmap='gray')
-        plt.imsave(image_paths['binary'], image_binary, cmap='binary')
 
         # Save the fractal analysis graph
         save_fractal_analysis_graph(log_box_sizes, log_box_counts, fractal_dimension, intercept,
@@ -619,4 +640,4 @@ def resize_image(image_path, max_size=(1024, 1024)):
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 5000))  # Render provides the PORT variable; default to 5000 if not set
-    app.run(debug=False, host='0.0.0.0', port=port)
+    app.run(debug=True, host='0.0.0.0', port=port)
