@@ -29,12 +29,16 @@ Welcome to my personal portfolio website, designed to showcase my skills, projec
   - Render (for deployment and hosting dynamic content, including serverless functions)
   - GitHub Pages (for static content hosting)
 
-## View the Website Online
+## Links and Contact Information
+- ### Website: [CodeBloodedFamily](https://CodeBloodedFamily.com).
+- ### GitHub: [versioning](https://github.com/Pau1Co1e).
+- ### LinkedIn: [paulc88](https://www.linkedin.com/in/paulc88/).
 
-- ### Visit the live website: [CodeBloodedFamily](https://CodeBloodedFamily.com). 
-- ### Visit GitHub Pages: [here](https://github.com/Pau1Co1e).
+- ### Email: [e-mail](engineering.paul@icloud.com).
+- ### Pauls Chatbot: [chatbot](https://CodeBloodedFamily.com/chatbot)
+
 - ### For questions or comments [contact](https://CodeBloodedFamily.com/contact) me or head over to my projects page and ask my chatbot [chatbot](https://CodeBloodedFamily.com/experience).
-
+--------
 
 ## Run the Website Locally
 

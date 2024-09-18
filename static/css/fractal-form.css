@@ -9,9 +9,9 @@ body.dark-mode {
 }
 
 .dark-mode-text {
-    color: #000000; /* Default color for light mode */
+    color: #000000;
 }
 
 body.dark-mode .dark-mode-text {
-    color: #f3f3f3; /* Color for dark mode */
+    color: #f3f3f3;
 }

@@ -11,3 +11,4 @@ gen
 static/docs/chatbot.log
 /instance/
 /static/uploads/
+/static/docs/resume_builder.py
