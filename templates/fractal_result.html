@@ -44,53 +44,56 @@
         </nav>
     </header>
 
-    <main class="container my-4">
-        <h1 class="text-center">Fractal Dimension Report</h1>
-        <div class="card mb-3">
-            <div class="card-body">
-                <h5 class="card-title">Fractal Dimension Calculation</h5>
-                <p class="card-text">Fractal Dimension: <strong>{{ fractal_dimension }}</strong></p>
-{#                Number(Math.round(parseFloat(value + 'e' + decimalPlaces)) + 'e-' + decimalPlaces).toFixed(decimalPlaces)#}
-            </div>
+<main class="container my-4">
+    <h1 class="text-center">Fractal Dimension Report</h1>
+    <div class="card mb-3">
+        <div class="card-body">
+            <h5 class="card-title">Fractal Dimension Calculation</h5>
+            <p class="card-text">Fractal Dimension: <strong>{{ fractal_dimension|round(2) }}</strong></p>
         </div>
+    </div>
 
-        <div class="row text-center">
-            <div class="col-md-3">
-                <h6>Original Image</h6>
-                <img src="{{ url_for('static', filename='uploads/original.png') }}" alt="Original Image" class="img-fluid">
+    <div class="row text-center">
+        <div class="col-md-4">
+            <h6>Original Image</h6>
+            <img src="{{ image_paths.original }}?v={{ uuid }}" alt="Original Image" class="img-fluid">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+              {% if messages %}
+                <div class="container">
+                  {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                      {{ message }}
+                      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                  {% endfor %}
+                </div>
+              {% endif %}
+            {% endwith %}
 
-            </div>
-            <div class="col-md-3">
-                <h6>Grayscale Image</h6>
-                <img src="{{ url_for('static', filename='uploads/grayscale.png') }}" alt="Grayscale Image" class="img-fluid">
-
-            </div>
-            <div class="col-md-3">
-                <h6>Binary Image</h6>
-                <img src="{{ url_for('static', filename='uploads/binary.png') }}" alt="Binary Image" class="img-fluid">
-            </div>
-            <div class="col-md-3">
-                <h6>Analysis Graph</h6>
-                <img src="{{ url_for('static', filename='uploads/analysis.png') }}" alt="Analysis Graph" class="img-fluid">
-            </div>
         </div>
-        <section>
-            <div class="text-center">
-                <a href="{{ url_for('download_generated_report', pdf_path=pdf_path) }}" class="btn btn-primary mb-4">Download PDF Report</a>
-            </div>
-        </section>
-    </main>
-
+        <div class="col-md-4">
+            <h6>Grayscale Image</h6>
+            <img src="{{ image_paths.grayscale }}" alt="Grayscale Image" class="img-fluid">
+        </div>
+        <div class="col-md-4">
+            <h6>Analysis Graph</h6>
+            <img src="{{ image_paths.analysis }}" alt="Fractal Analysis" class="img-fluid">
+        </div>
+    </div>
+    <section>
+        <div class="text-center">
+            <a href="{{ pdf_url }}" class="btn btn-primary mb-4">Download Report</a>
+        </div>
+    </section>
+</main>
     <footer class="bg-light text-center py-3 mt-4">
         <div class="container">
             <p class="mb-0">© 2024 Paul Coleman. All rights reserved.</p>
         </div>
     </footer>
-
     <script src="https://code.jquery.com/jquery-3.7.1.min.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.10.2/dist/umd/popper.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{{ url_for('static', filename='js/script.min.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/fractal-form.min.js') }}"></script>
 </body>
 </html>
