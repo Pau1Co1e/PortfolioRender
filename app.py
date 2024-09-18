@@ -17,9 +17,10 @@ from scipy.stats import linregress
 import matplotlib
 import numpy as np
 from matplotlib import pyplot as plt
+import torch
+from transformers import pipeline
 
-faq_pipeline = None
-# import torch
+# faq_pipeline = None
 
 # Configure matplotlib
 matplotlib.use('Agg')
@@ -59,13 +60,13 @@ logHandler.setFormatter(formatter)
 app.logger.addHandler(logHandler)
 app.logger.setLevel(logging.INFO)
 
-
+global faq_pipeline
 # Preload the AI model
-# faq_pipeline = pipeline(
-#     "question-answering",
-#     model="distilbert-base-cased-distilled-squad",
-#     device=0 if torch.cuda.is_available() else -1
-# )
+faq_pipeline = pipeline(
+    "question-answering",
+    model="distilbert-base-cased-distilled-squad",
+    device=0 if torch.cuda.is_available() else -1
+)
 
 
 # Utility functions
@@ -111,22 +112,23 @@ def preprocess_question(question):
 
 def call_faq_pipeline(question, context):
     """Invoke the FAQ pipeline model."""
-    from transformers import pipeline
+    # global faq_pipeline
+    # from transformers import pipeline
     import torch  # Import torch here
     app.logger.info({
         'action': 'faq_pipeline_called',
         'question': question,
         'context_snippet': context[:100]
     })
-    global faq_pipeline
-    if faq_pipeline is None:
-        faq_pipeline = pipeline(
-            "question-answering",
-            model="distilbert-base-cased-distilled-squad",
-            device=0 if torch.cuda.is_available() else -1
-        )
-        # Set model to evaluation mode
-        faq_pipeline.model.eval()
+    # global faq_pipeline
+    # if faq_pipeline is None:
+    # faq_pipeline = pipeline(
+    #     "question-answering",
+    #     model="distilbert-base-cased-distilled-squad",
+    #     device=0 if torch.cuda.is_available() else -1
+    # )
+    # Set model to evaluation mode
+    faq_pipeline.model.eval()
     with torch.no_grad():
         result = faq_pipeline(question=question, context=context)
     return result
@@ -255,19 +257,27 @@ async def chatbot_answer():
 
         # Static context
         static_context = (
-            "My name is Paul Coleman. I am an AI and ML Engineer with expertise in Artificial Intelligence and "
-            "Machine Learning. I have experience in Python, Java, and AI/ML frameworks like TensorFlow and PyTorch. "
-            "I studied at Utah Valley University. Most Recent Professional Work Experience or Job Title: Full Stack "
-            "Web Developer."
-            "Tools used as a full stack web developer: ASP.NET Core. Graduated with a Bachelor of Science in Computer "
-            "Science in August 2022."
-            "I am currently a graduate student pursuing a master's degree in Computer Science and will graduate with "
-            "a master's degree in Fall 2025."
-            "Studied mathematics and statistics: discrete mathematics, numerical analysis, probabilities and "
-            "statistical analysis, data analysis, calculus, and linear algebra. Paul's Web Development Skills and "
-            "Experience: Flask, C#, PHP, Search Engine Optimization, User Experience"
-            "Design, User Interface Design, Responsive Design, Postgres, Git, Swift. Core Programming Languages: ["
-            "Python, C#, Java, SQL, HTML5/CSS3, JavaScript]."
+            "My name is Paul Coleman. I'm currently enrolled as a graduate student in the computer science masters "
+            "program at Utah Valley University."
+            "I am working towards becoming an AI/ML Engineer with an interest in applying those skills to Finance, "
+            "Cybersecurity, or Healthcare sectors. "
+            "I have 5 years of programming experience with Python and AI/ML frameworks TensorFlow and PyTorch."
+            "Most Recent Professional Work Experience or Job Title: Full Stack Web Developer."
+            "Tools and programming languages that I used when I was working as a full stack web developer: C#, "
+            "ASP.NET Core."
+            "Earned a Bachelors degree in Computer Science on August 2022 from Utah Valley University."
+            "I will be graduating with a masters degree in Computer Science from Utah Valley University in the Fall "
+            "of 2025."
+            "AI related skills and expertise that I have are mathematics and statistics, discrete mathematics, "
+            "numerical analysis, probabilities and statistical analysis, data analysis, calculus, and linear algebra. "
+            "Full Stack Developer Skills and Experience: Flask, C#, PHP, Search Engine Optimization, User Experience, "
+            "Design, User Interface Design, Responsive Design, Postgres, Git, Swift. "
+            "Other Known Programming Languages: Python, C#, Java, SQL, HTML5/CSS3, JavaScript."
+            "My email is engineering.paul@icloud.com."
+            "Completed an internship as a robotics software engineer. The internship was my introduction to machine "
+            "learning and artificial intelligence and how to apply it in the real world. As an intern, I developed "
+            "computer vision, natural language processing, and autonomous functionalities for humanoid robots."
+
         )
 
         # Maintain conversation history in the session (limit to last 3 questions)
