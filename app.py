@@ -368,7 +368,7 @@ async def chatbot_answer():
             question = preprocess_question(data['question'])
         except ValueError as ve:
             app.logger.warning(f"Invalid question: {ve}", extra={'action': 'chatbot_error'})
-            return jsonify({"error": str(ve)}), 400
+            return jsonify({"error": "Invalid question provided."}), 400
 
         # question = preprocess_question(data['question'])
         cached_response = cache.get(f"chatbot_answer_{question}")
