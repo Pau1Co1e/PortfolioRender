@@ -4,6 +4,10 @@ import logging
 import asyncio
 import re
 import uuid
+from urllib.parse import unquote
+from flask import Flask
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 import torch
 from flask import (
     Flask, render_template, request, jsonify, flash, redirect, url_for,
@@ -55,9 +59,13 @@ app.config.update(
     SESSION_COOKIE_SAMESITE='Lax',
 )
 
-# Initialize CSRF protection
+# Initialize Extensions
 csrf = CSRFProtect(app)
+db = SQLAlchemy(app)
+cache = Cache(app, config={'CACHE_TYPE': 'simple'})  # Caching storage with Redis for production
 
+# Initialize Limiter
+limiter = Limiter(get_remote_address, app=app, default_limits=["200 per day", "50 per hour"])
 
 @app.errorhandler(400)
 def bad_request(error):
@@ -78,11 +86,6 @@ def handle_csrf_error(e):
         app.logger.error(f"CSRF Error: {e.description}", extra={'action': 'csrf_error'})
         return render_template('csrf_error.html', reason=e.description), 400
     return "Bad Request", 400
-
-
-# Initialize extensions
-db = SQLAlchemy(app)
-cache = Cache(app, config={'CACHE_TYPE': 'simple'})  # Caching storage with Redis for production
 
 # Logging configuration
 logHandler = logging.StreamHandler()
@@ -127,12 +130,14 @@ def validate_and_save_file(requested):
         raise ValueError('Invalid file format')
 
     filename = secure_filename(file.filename)
-    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    unique_id = str(uuid.uuid4())
+    file_name = f"{unique_id}_{filename}"
+    file_path = os.path.join(app.config['UPLOAD_FOLDER'], file_name)
 
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
     file.save(file_path)
 
-    app.logger.info(f"File saved successfully at {file_path}", extra={'action': 'file_saved', 'uploaded_filename': filename})
+    app.logger.info(f"File saved successfully at {file_path}", extra={'action': 'file_saved', 'uploaded_filename': file_name})
     return file_path
 
 
@@ -140,6 +145,8 @@ def validate_and_save_file(requested):
 def preprocess_question(question):
     """Preprocess the user question by stripping whitespaces and ensuring punctuation."""
     question = question.strip()
+    if len(question) > 200:
+         raise ValueError('Question is too long. Please limit your question to 200 characters.')
     if not question.endswith('?'):
         question += '?'
     app.logger.info(f"Processed question: {question}", extra={'action': 'question_preprocessed'})
@@ -227,6 +234,28 @@ def before_request():
 #     response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
 #     return log_response(response)
 @app.after_request
+# def after_request(response):
+#     """Actions to perform after each request."""
+#     # Add CORS headers
+#     response.headers['Access-Control-Allow-Origin'] = 'https://portfoliorender-p89i.onrender.com'
+#     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+#     response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+#     # Add Content Security Policy header
+#     response.headers['Content-Security-Policy'] = (
+#         "default-src 'self'; "
+#         "script-src 'self' 'unsafe-inline' https://code.jquery.com; "
+#         "style-src 'self' 'unsafe-inline'; "
+#         "img-src 'self' data:; "
+#         "font-src 'self'; "
+#         "connect-src 'self';"
+#     )
+#     # Apply Security Headers
+#     response.headers['X-Content-Type-Options'] = 'nosniff'
+#     response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+#     response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains; preload'
+#
+#     return log_response(response)
+@app.after_request
 def after_request(response):
     """Actions to perform after each request."""
     # Add CORS headers
@@ -234,12 +263,25 @@ def after_request(response):
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
 
+    # Add Content Security Policy header
+    response.headers['Content-Security-Policy'] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' https://code.jquery.com https://cdn.jsdelivr.net; "
+        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+        "img-src 'self' data:; "
+        "connect-src 'self' https://api.huggingface.co; "  # Chatbot external API
+        "frame-src 'self' https://docs.google.com; "  # Contact form Google Forms iframe
+        "font-src 'self' https://cdn.jsdelivr.net; "
+    )
+
     # Apply Security Headers
     response.headers['X-Content-Type-Options'] = 'nosniff'
     response.headers['X-Frame-Options'] = 'SAMEORIGIN'
     response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains; preload'
 
-    return response
+    return log_response(response)
+
+
 
 @app.errorhandler(400)
 def bad_request(error):
@@ -312,9 +354,9 @@ def chatbot():
     app.logger.info(f"Chatbot page accessed at {session['visit_time']}", extra={'action': 'chatbot_accessed'})
     return render_template('chatbot.html')
 
-
-@app.route('/chatbot-answer', methods=['POST'])
 @csrf.exempt
+@app.route('/chatbot-answer', methods=['POST'])
+@limiter.limit("5 per minute")
 async def chatbot_answer():
     try:
         data = request.get_json()
@@ -322,7 +364,13 @@ async def chatbot_answer():
             app.logger.warning("No question provided in chatbot request", extra={'action': 'chatbot_error'})
             return jsonify({"error": "No question provided"}), 400
 
-        question = preprocess_question(data['question'])
+        try:
+            question = preprocess_question(data['question'])
+        except ValueError as ve:
+            app.logger.warning(f"Invalid question: {ve}", extra={'action': 'chatbot_error'})
+            return jsonify({"error": str(ve)}), 400
+
+        # question = preprocess_question(data['question'])
         cached_response = cache.get(f"chatbot_answer_{question}")
         if cached_response:
             app.logger.info("Returning cached response", extra={'action': 'cached_response_returned'})
@@ -380,12 +428,88 @@ async def chatbot_answer():
     except Exception as e:
         app.logger.error(f"Error processing chatbot request: {str(e)}", extra={'action': 'chatbot_error'})
         return jsonify({"error": "An error occurred while processing your question"}), 500
+# @app.route('/chatbot-answer', methods=['POST'])
+# @limiter.limit("5 per minute")
+# @csrf.exempt
+# async def chatbot_answer():
+#     try:
+#         data = request.get_json()
+#         if not data or 'question' not in data:
+#             app.logger.warning("No question provided in chatbot request", extra={'action': 'chatbot_error'})
+#             return jsonify({"error": "No question provided"}), 400
+#
+#         try:
+#             question = preprocess_question(data['question'])
+#         except ValueError as ve:
+#             app.logger.warning(f"Invalid question: {ve}", extra={'action': 'chatbot_error'})
+#             return jsonify({"error": str(ve)}), 400
+#
+#         question = preprocess_question(data['question'])
+#         cached_response = cache.get(f"chatbot_answer_{question}")
+#
+#         if cached_response:
+#             app.logger.info("Returning cached response", extra={'action': 'cached_response_returned'})
+#             return jsonify(cached_response)
+#
+#         # Static context
+#         static_context = (
+#             "My name is Paul Coleman. I'm currently enrolled as a graduate student in the computer science masters "
+#             "program at Utah Valley University."
+#             "I am working towards becoming an AI/ML Engineer with an interest in applying those skills to Finance, "
+#             "Cybersecurity, or Healthcare sectors. "
+#             "I have 5 years of programming experience with Python and AI/ML frameworks TensorFlow and PyTorch."
+#             "Most Recent Professional Work Experience or Job Title: Full Stack Web Developer."
+#             "Tools and programming languages that I used when I was working as a full stack web developer: C#, "
+#             "ASP.NET Core."
+#             "Earned a Bachelors degree in Computer Science on August 2022 from Utah Valley University."
+#             "I will be graduating with a masters degree in Computer Science from Utah Valley University in the Fall "
+#             "of 2025."
+#             "AI related skills and expertise that I have are mathematics and statistics, discrete mathematics, "
+#             "numerical analysis, probabilities and statistical analysis, data analysis, calculus, and linear algebra. "
+#             "Full Stack Developer Skills and Experience: Flask, C#, PHP, Search Engine Optimization, User Experience, "
+#             "Design, User Interface Design, Responsive Design, Postgres, Git, Swift. "
+#             "Other Known Programming Languages: Python, C#, Java, SQL, HTML5/CSS3, JavaScript."
+#             "My email is engineering.paul@icloud.com."
+#             "Completed an internship as a robotics software engineer. The internship was my introduction to machine "
+#             "learning and artificial intelligence and how to apply it in the real world. As an intern, I developed "
+#             "computer vision, natural language processing, and autonomous functionalities for humanoid robots."
+#
+#         )
+#
+#         # Maintain conversation history in the session (limit to last 3 questions)
+#         session['conversation_history'] = session.get('conversation_history', [])
+#         session['conversation_history'].append(question)
+#         # Keep only the last 3 questions
+#         session['conversation_history'] = session['conversation_history'][-3:]
+#
+#         # Combine static context with conversation history to create full context
+#         conversation_context = ' '.join(session['conversation_history'])
+#         full_context = f"{static_context} {conversation_context}"
+#         app.logger.info(f"Full context prepared for chatbot", extra={'action': 'context_prepared'})
+#
+#         # Perform the model inference asynchronously
+#         loop = asyncio.get_event_loop()
+#         result = await loop.run_in_executor(
+#             None, call_faq_pipeline, question, full_context
+#         )
+#
+#         answer = result.get('answer', 'Sorry, I could not find an answer.')
+#         if answer and len(answer) > 3:
+#             cache.set(f"chatbot_answer_{question}", {"answer": answer}, timeout=60)
+#
+#         app.logger.info("Chatbot successfully answered question", extra={'action': 'chatbot_answered'})
+#         return jsonify({"answer": answer})
+#
+#     except Exception as e:
+#         app.logger.error(f"Error processing chatbot request: {str(e)}", extra={'action': 'chatbot_error'})
+#         return jsonify({"error": "An error occurred while processing your question"}), 500
 
 
 @app.route('/videos/<filename>')
 def serve_video(filename):
+    filename = secure_filename(filename)
     """Serve video files with byte-range support for efficient streaming."""
-    range_header = request.headers.get('Range', None)
+    # range_header = request.headers.get('Range', None)
     video_path = os.path.join(app.config['VIDEO_FOLDER'], filename)
 
     if not os.path.exists(video_path):
@@ -446,6 +570,8 @@ def fractal():
             # Generate PDF report
             pdf_url = generate_report(fractal_dimension, image_file_paths)
 
+            # # Extract the filename from pdf_url
+            # pdf_filename = os.path.basename(unquote(pdf_url))
             app.logger.info(f"Fractal dimension calculated: {fractal_dimension}",
                             extra={'action': 'fractal_calculated'})
 
@@ -470,15 +596,33 @@ def calculate_fractal_dimension(image_path):
     """Calculate the fractal dimension of an image and save relevant images."""
     try:
         from PIL import Image
+        import os
+
+        # Ensure the image_path is within the UPLOAD_FOLDER
+        if not image_path.startswith(app.config['UPLOAD_FOLDER']):
+            app.logger.error(f"Unauthorized image path: {image_path}",
+                             extra={'action': 'fractal_calculation_error'})
+            raise ValueError('Invalid image path')
+
         with Image.open(image_path) as image:
             resized_image, image_gray, image_binary = process_image(image)
+
         # Perform box counting
         fractal_dimension, log_box_sizes, log_box_counts, intercept = perform_box_counting(image_binary)
+
         # Delete large variables
         del image_binary
+
         # Save images and analysis graph using the resized image
-        image_urls, image_file_paths = save_images(resized_image, image_gray, fractal_dimension, log_box_sizes,
-                                                   log_box_counts, intercept)
+        image_urls, image_file_paths = save_images(
+            resized_image,
+            image_gray,
+            None,
+            fractal_dimension,
+            log_box_sizes,
+            log_box_counts,
+            intercept
+        )
         # Delete more variables
         del image_gray
         del resized_image
@@ -551,7 +695,7 @@ def perform_box_counting(image_binary):
         raise
 
 
-def save_images(image, image_gray, fractal_dimension, log_box_sizes, log_box_counts, intercept):
+def save_images(image, image_gray, image_binary, fractal_dimension, log_box_sizes, log_box_counts, intercept):
     """Save the images with unique filenames and return their URLs and file paths."""
     try:
         from matplotlib import pyplot as plt2
@@ -573,8 +717,13 @@ def save_images(image, image_gray, fractal_dimension, log_box_sizes, log_box_cou
         # Save images
         image.save(image_paths['original'])
         plt2.imsave(image_paths['grayscale'], image_gray, cmap='gray')
-        save_fractal_analysis_graph(log_box_sizes, log_box_counts, fractal_dimension, intercept,
-                                    image_paths['analysis'])
+        save_fractal_analysis_graph(
+             log_box_sizes,
+             log_box_counts,
+             fractal_dimension,
+             intercept,
+             image_paths['analysis']
+         )
 
         # Convert file paths to URLs
         image_urls = {
@@ -625,41 +774,41 @@ def save_fractal_analysis_graph(log_box_sizes, log_box_counts, fractal_dimension
 
 
 def generate_report(fractal_dimension, image_paths):
-    """Generate a PDF report for the fractal dimension analysis."""
     try:
         from reportlab.lib.pagesizes import letter
-        from reportlab.lib.units import inch
         from reportlab.pdfgen import canvas
+        from reportlab.lib.units import inch
         import os
 
-        pdf_filename = f'fractal_report_{str(uuid.uuid4())}.pdf'
+        # Generate a unique and secure filename for the PDF report
+        pdf_filename = secure_filename(f'fractal_report_{str(uuid.uuid4())}.pdf')
         pdf_path = os.path.join(app.config['UPLOAD_FOLDER'], pdf_filename)
         c = canvas.Canvas(pdf_path, pagesize=letter)
 
-        # Unpack the page size into width and height
+        # Define page size and layout
         width, height = letter
 
-        # Title
+        # Title of the report
         c.setFont("Helvetica-Bold", 16)
         c.drawCentredString(width / 2, height - 0.5 * inch, "Fractal Dimension Analysis Report")
 
-        # Fractal Dimension Text
+        # Fractal Dimension Text section
         c.setFont("Helvetica", 12)
         c.drawString(inch, height - 1 * inch, f"Estimated Fractal Dimension: {fractal_dimension:.2f}")
 
-        # Image dimensions
+        # Image dimensions for the layout
         image_width, image_height = 3 * inch, 3 * inch  # Fixed size for images
 
-        # Define positions for images
+        # Define positions for the images
         positions = [
-            (inch, height - 2 * inch - image_height),  # Top-left (Original)
-            (4.5 * inch, height - 2 * inch - image_height),  # Top-right (Grayscale)
-            (inch, height - 2 * inch - 2 * image_height - 0.5 * inch),  # Bottom-left (Analysis)
+            (inch, height - 2 * inch - image_height),  # Top-left (Original Image)
+            (4.5 * inch, height - 2 * inch - image_height),  # Top-right (Grayscale Image)
+            (inch, height - 2 * inch - 2 * image_height - 0.5 * inch),  # Bottom-left (Analysis Graph)
         ]
 
         labels = ['Original Image', 'Grayscale Image', 'Fractal Analysis']
 
-        # Draw images and labels
+        # Draw images and labels in the PDF report
         for i, (key, path) in enumerate(image_paths.items()):
             if path:
                 image_file_path = os.path.join(app.config['UPLOAD_FOLDER'], os.path.basename(path))
@@ -672,20 +821,22 @@ def generate_report(fractal_dimension, image_paths):
                 else:
                     app.logger.error(f"Image file does not exist: {image_file_path}",
                                      extra={'action': 'missing_image', 'path': image_file_path})
+                    raise FileNotFoundError(f"Image file does not exist: {image_file_path}")
             else:
                 app.logger.error(f"Image path is invalid: {path}", extra={'action': 'missing_image', 'path': path})
+                raise ValueError(f"Image path is invalid: {path}")
 
-        # Add the hyperlink to navigate back to the projects page
+        # Add hyperlink to navigate back to the Projects page
         c.setFont("Helvetica-Bold", 12)
         link_url = url_for('experience', _external=True)  # URL for the projects page
         c.drawString(inch, inch, "Click here to go back to the Projects page")
         c.linkURL(link_url, (inch, inch - 0.2 * inch, 4 * inch, inch + 0.2 * inch))
 
-        # Save PDF
+        # Save the PDF report
         c.save()
         app.logger.info(f"PDF generated successfully: {pdf_path}", extra={'action': 'pdf_generated'})
 
-        # Convert file path to URL
+        # Convert the PDF file path to a downloadable URL
         pdf_url = url_for('uploaded_file', filename=pdf_filename)
 
         return pdf_url
@@ -697,18 +848,31 @@ def generate_report(fractal_dimension, image_paths):
 
 @app.route('/download_generated_report')
 def download_generated_report():
-    pdf_path = request.args.get('pdf_path')
-    if not pdf_path or not os.path.exists(pdf_path):
+    filename = request.args.get('filename')
+    if not filename:
+        flash('Report not found.', 'danger')
+        app.logger.warning("No filename provided for report download", extra={'action': 'download_report_not_found'})
+        return safe_redirect('fractal')
+
+    # Sanitize the filename
+    filename = secure_filename(filename)
+
+    # Construct the file path
+    pdf_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+
+    # Verify that the file exists
+    if not os.path.isfile(pdf_path):
         flash('Report not found.', 'danger')
         app.logger.warning("Attempted to download a non-existent report", extra={'action': 'download_report_not_found'})
         return safe_redirect('fractal')
 
-    app.logger.info(f"Report downloaded: {pdf_path}", extra={'action': 'download_report'})
-    return send_file(pdf_path, as_attachment=True)
+    app.logger.info(f"Report downloaded: {filename}", extra={'action': 'download_report'})
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename, as_attachment=True)
 
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
+    filename = secure_filename(filename)
     app.logger.info(f"Serving uploaded file: {filename}",
                     extra={'action': 'serve_uploaded_file', 'file_name': filename})
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
@@ -716,6 +880,11 @@ def uploaded_file(filename):
 
 def resize_image(image_path, max_size=(1024, 1024)):
     from PIL.Image import UnidentifiedImageError
+    # Ensure the image path is within the UPLOAD_FOLDER
+    if not image_path.startswith(app.config['UPLOAD_FOLDER']):
+        app.logger.error(f"Unauthorized image path: {image_path}",
+                         extra={'action': 'resize_image_error', 'image_path': image_path})
+        return None
     """Resize the image to a specified maximum size and return the path."""
     try:
         from PIL import Image
@@ -724,7 +893,8 @@ def resize_image(image_path, max_size=(1024, 1024)):
         if os.path.isfile(image_path):
             with Image.open(image_path) as img:
                 img.thumbnail(max_size, Resampling.LANCZOS)
-                resized_path = os.path.join(app.config['UPLOAD_FOLDER'], 'resized_' + os.path.basename(image_path))
+                resized_filename = f"resized_{os.path.basename(image_path)}"
+                resized_path = os.path.join(app.config['UPLOAD_FOLDER'], resized_filename)
                 img.save(resized_path)
                 app.logger.info(f"Image resized and saved to {resized_path}",
                                 extra={'action': 'image_resized', 'resized_path': resized_path})
