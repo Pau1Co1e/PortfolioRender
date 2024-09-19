@@ -13,3 +13,4 @@ werkzeug~=3.0.3
 Flask-Limiter~=3.8.0
 reportlab==4.2.2
 pillow==10.4.0
+gunicorn==23.0.0
