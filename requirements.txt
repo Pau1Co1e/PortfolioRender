@@ -14,3 +14,10 @@ Flask-Limiter~=3.8.0
 reportlab==4.2.2
 pillow==10.4.0
 gunicorn==23.0.0
+Flask-SQLAlchemy==3.1.1
+Flask-WTF==1.2.1
+frozen-flask~=1.0.2
+pandas==2.2.2
+psutil~=6.0.0
+scikit-image==0.24.0
+yfinance==0.2.41
