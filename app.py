@@ -25,7 +25,6 @@ from flask_wtf.csrf import CSRFProtect
 
 # Configure matplotlib
 import matplotlib
-
 matplotlib.use('Agg')
 
 # Flask app configuration
@@ -49,7 +48,7 @@ app.config.update(
     UPLOAD_FOLDER=os.path.join(app.root_path, 'static/uploads/'),
     VIDEO_FOLDER=os.path.join(app.root_path, 'static/videos/'),
     MAX_CONTENT_LENGTH=16 * 1024 * 1024,  # Limit file size to 16MB
-    ALLOWED_EXTENSIONS={'png', 'jpg', 'jpeg', 'gif', 'svg'},
+    ALLOWED_EXTENSIONS={'png', 'jpg', 'jpeg', 'gif'},
     SQLALCHEMY_TRACK_MODIFICATIONS=False,
     SESSION_COOKIE_SECURE=True,  # Set to True if using HTTPS in production
     SESSION_COOKIE_HTTPONLY=True,
@@ -82,7 +81,6 @@ def handle_csrf_error(e):
 
 
 # Initialize extensions
-# csrf = CSRFProtect(app)
 db = SQLAlchemy(app)
 cache = Cache(app, config={'CACHE_TYPE': 'simple'})  # Caching storage with Redis for production
 
@@ -107,9 +105,9 @@ faq_pipeline = pipeline(
 #     """Check if the uploaded file has an allowed extension."""
 #     return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 def allowed_file(filename):
-    allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'svg'}
+    allowed_extensions = {'png', 'jpg', 'jpeg', 'gif'}
     mime_type, _ = mimetypes.guess_type(filename)
-    return mime_type in ['image/png', 'image/jpeg', 'image/gif', 'image/svg+xml'] and \
+    return mime_type in ['image/png', 'image/jpeg', 'image/gif'] and \
         '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
 
 
@@ -134,9 +132,9 @@ def validate_and_save_file(requested):
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
     file.save(file_path)
 
-    app.logger.info(f"File saved successfully at {file_path}",
-                    extra={'action': 'file_saved', 'uploaded_filename': filename})
+    app.logger.info(f"File saved successfully at {file_path}", extra={'action': 'file_saved', 'uploaded_filename': filename})
     return file_path
+
 
 
 def preprocess_question(question):
@@ -209,10 +207,25 @@ def log_response(response):
 @app.before_request
 def before_request():
     """Actions to perform before each request."""
-    log_request()
+    app.logger.info({
+        'action': 'request_received',
+        'method': request.method,
+        'url': request.url,
+        'remote_addr': request.remote_addr,
+        'user_agent': request.user_agent.string,
+        'query_string': request.query_string.decode('utf-8'),
+    })
     db.create_all()
 
 
+# @app.after_request
+# def after_request(response):
+#     """Actions to perform after each request."""
+#     # Add CORS headers
+#     response.headers['Access-Control-Allow-Origin'] = 'https://portfoliorender-p89i.onrender.com'
+#     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+#     response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+#     return log_response(response)
 @app.after_request
 def after_request(response):
     """Actions to perform after each request."""
@@ -220,8 +233,13 @@ def after_request(response):
     response.headers['Access-Control-Allow-Origin'] = 'https://portfoliorender-p89i.onrender.com'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
-    return log_response(response)
 
+    # Apply Security Headers
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains; preload'
+
+    return response
 
 @app.errorhandler(400)
 def bad_request(error):
@@ -256,18 +274,25 @@ def about_me():
     return render_template('about_me.html')
 
 
+# @app.route('/contact', methods=['GET', 'POST'])
+# def contact():
+#     if request.method == 'POST':
+#         # Process the form data if provided (you can add your form logic here)
+#         # Example: Save to database or send email
+#         flash('Your message has been sent successfully!', 'success')
+#         app.logger.info('Contact form submitted', extra={'action': 'contact_form_submitted'})
+#         return redirect(url_for('contact'))
+#
+#     app.logger.info("Rendered contact page", extra={'action': 'render_page', 'page': 'contact'})
+#     return render_template('contact.html')
 @app.route('/contact', methods=['GET', 'POST'])
 def contact():
     if request.method == 'POST':
-        # Process the form data if provided (you can add your form logic here)
-        # Example: Save to database or send email
         flash('Your message has been sent successfully!', 'success')
         app.logger.info('Contact form submitted', extra={'action': 'contact_form_submitted'})
         return redirect(url_for('contact'))
 
-    app.logger.info("Rendered contact page", extra={'action': 'render_page', 'page': 'contact'})
     return render_template('contact.html')
-
 
 @app.route('/download')
 def download():
@@ -452,7 +477,7 @@ def calculate_fractal_dimension(image_path):
         # Delete large variables
         del image_binary
         # Save images and analysis graph using the resized image
-        image_urls, image_file_paths = save_images(resized_image, image_gray, None, fractal_dimension, log_box_sizes,
+        image_urls, image_file_paths = save_images(resized_image, image_gray, fractal_dimension, log_box_sizes,
                                                    log_box_counts, intercept)
         # Delete more variables
         del image_gray
@@ -526,10 +551,10 @@ def perform_box_counting(image_binary):
         raise
 
 
-def save_images(image, image_gray, image_binary, fractal_dimension, log_box_sizes, log_box_counts, intercept):
+def save_images(image, image_gray, fractal_dimension, log_box_sizes, log_box_counts, intercept):
     """Save the images with unique filenames and return their URLs and file paths."""
     try:
-        from matplotlib import pyplot as plt
+        from matplotlib import pyplot as plt2
         import os
 
         static_folder = app.config['UPLOAD_FOLDER']
@@ -547,7 +572,7 @@ def save_images(image, image_gray, image_binary, fractal_dimension, log_box_size
 
         # Save images
         image.save(image_paths['original'])
-        plt.imsave(image_paths['grayscale'], image_gray, cmap='gray')
+        plt2.imsave(image_paths['grayscale'], image_gray, cmap='gray')
         save_fractal_analysis_graph(log_box_sizes, log_box_counts, fractal_dimension, intercept,
                                     image_paths['analysis'])
 
