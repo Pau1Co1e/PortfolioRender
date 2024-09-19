@@ -36,7 +36,6 @@ $(document).ready(function() {
         });
     });
 
-    // Handle Dark Mode Toggle
     $('#darkModeToggle').on('click', function() {
         $('body').toggleClass('dark-mode');
         $('.navbar, .footer').toggleClass('dark-mode');

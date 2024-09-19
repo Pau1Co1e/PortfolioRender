@@ -1,0 +1,17 @@
+body.light-mode {
+    background-color: #ffffff;
+    color: #000000;
+}
+
+body.dark-mode {
+    background-color: #121212;
+    color: #f3f3f3;
+}
+
+.dark-mode-text {
+    color: #000000;
+}
+
+body.dark-mode .dark-mode-text {
+    color: #f3f3f3;
+}
