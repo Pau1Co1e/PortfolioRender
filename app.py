@@ -10,14 +10,17 @@ from flask_limiter.util import get_remote_address
 from flask_sqlalchemy import SQLAlchemy
 from flask_session import Session
 from flask_wtf.csrf import CSRFProtect
+import gc
 import logging
 from logging.handlers import RotatingFileHandler
 from matplotlib import pyplot as plt
+from memory_profiler import profile
 import mimetypes
 import numpy as np
 import os
 from pythonjsonlogger import jsonlogger  # JSON logging
 import re
+import requests
 import secrets
 from scipy.stats import linregress
 from transformers import pipeline
@@ -26,8 +29,8 @@ import uuid
 from werkzeug.utils import secure_filename
 import torch
 import matplotlib
-
 matplotlib.use('Agg')
+
 DEBUG = False
 
 # Flask app configuration
@@ -66,15 +69,16 @@ app.config.update(
 )
 
 # global faq_pipeline
-# Preload the AI model
-faq_pipeline = pipeline(
-    "question-answering",
-    model="distilbert-base-cased-distilled-squad",
-    device=0 if torch.cuda.is_available() else -1
-)
+# # Preload the AI model
+# faq_pipeline = pipeline(
+#     "question-answering",
+#     model="distilbert-base-cased-distilled-squad",
+#     device=0 if torch.cuda.is_available() else -1
+# )
 
 # After loading the model
-faq_pipeline.model.eval()
+# faq_pipeline.model.eval()
+
 def create_directories():
     """Create necessary directories if they don't exist."""
     for folder_key in ['UPLOAD_FOLDER', 'VIDEO_FOLDER']:
@@ -130,7 +134,7 @@ def inject_nonce():
 def after_request(response):
     """Set security headers after each request."""
     # Add CORS headers
-    response.headers['Access-Control-Allow-Origin'] = 'https://portfoliorender-p89i.onrender.com'
+    response.headers['Access-Control-Allow-Origin'] = 'https://codebloodedfamily.com'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
 
@@ -139,7 +143,7 @@ def after_request(response):
     response.headers['Content-Security-Policy'] = (
         f"default-src 'self'; "
         f"script-src 'self' 'nonce-{nonce}' https://code.jquery.com https://cdn.jsdelivr.net; "
-        f"style-src 'self' 'nonce-{nonce}' https://cdn.jsdelivr.net; "
+        f"style-src 'self' 'nonce-{nonce}' 'unsafe-inline' https://cdn.jsdelivr.net; "
         "img-src 'self' data:; "
         "connect-src 'self' https://api.huggingface.co; "
         "frame-src 'self' https://docs.google.com; "
@@ -223,7 +227,6 @@ def chatbot():
         app.logger.info(f"Chatbot page accessed at {session['visit_time']}", extra={'action': 'chatbot_accessed'})
     return render_template('chatbot.html')
 
-
 @app.route('/chatbot-answer', methods=['POST'])
 @csrf.exempt  # Exempt this route from CSRF protection
 @limiter.limit("5 per minute")
@@ -235,6 +238,7 @@ def chatbot_answer():
                 app.logger.warning("No question provided in chatbot request", extra={'action': 'chatbot_error'})
             return jsonify({"error": "No question provided"}), 400
 
+        # Preprocess the question
         try:
             question = preprocess_question(data['question'])
         except ValueError as ve:
@@ -242,63 +246,69 @@ def chatbot_answer():
                 app.logger.warning(f"Invalid question: {ve}", extra={'action': 'chatbot_error'})
             return jsonify({"error": "Invalid question provided."}), 400
 
+        # Check if the response is cached
         cached_response = cache.get(f"chatbot_answer_{question}")
         if cached_response:
             if DEBUG:
                 app.logger.info("Returning cached response", extra={'action': 'cached_response_returned'})
             return jsonify(cached_response)
 
+        # Call FastAPI service to handle the model inference
+        response = call_faq_pipeline(question)
 
-        # Static context
-        static_context = (
-            "My name is Paul Coleman. I'm a graduate student working towards earning a masters degree in computer science "
-            "at Utah Valley University."
-            "I am working towards becoming an AI/ML Engineer with an interest in applying those skills to Finance, "
-            "Cybersecurity, or Healthcare sectors. "
-            "I have 5 years of programming experience with Python and AI/ML frameworks TensorFlow and PyTorch."
-            "Most Recent Professional Work Experience or Job Title: Full Stack Web Developer."
-            "Tools and programming languages that I used when I was working as a full stack web developer: "
-            "JavaScript, C#, SQL, .NET, ASP.NET Core., HTML/CSS, AJAX"
-            "I have a Bachelors degree in Computer Science and graduated on August 2022 from Utah Valley University."
-            "I will graduate with a Masters degree in Computer Science from Utah Valley University in the Fall "
-            "of 2025."
-            "Skills and expertise that I have are mathematics and statistics, data preprocessing, neural networks, multivariable calculus, discrete mathematics, "
-            "numerical analysis, probabilities and statistical analysis, data science, and linear algebra. "
-            "Full Stack Developer Skills and programming languages: Flask, C#, PHP, SEO, User Experience, Network Security, "
-            "UI/UX, Responsive Design, Redis, Postgres, Git, Swift, Docker, AWS. "
-            "Programming Languages: Python, C#, Java, SQL, HTML5/CSS3, JavaScript."
-            "My email is engineering.paul@icloud.com."
-            "Completed an internship as a robotics software engineer; the internship was my introduction to machine "
-            "learning and artificial intelligence and how to apply it in the real world. As an intern, I developed "
-            "computer vision, natural language processing, and autonomous functionalities for humanoid robots."
-
-        )
-
-        # Maintain conversation history in the session (limit to last 3 questions)
-        session['conversation_history'] = session.get('conversation_history', [])
-        session['conversation_history'].append(question)
-        session['conversation_history'] = session['conversation_history'][-3:]
-
-        # Combine static context with conversation history to create full context
-        conversation_context = ' '.join(session['conversation_history'])
-        full_context = f"{static_context} {conversation_context}"
-        if DEBUG:
-            app.logger.info("Full context prepared for chatbot", extra={'action': 'context_prepared'})
-
-        # Perform the model inference
-        result = call_faq_pipeline(question, full_context)
-
-        answer = result.get('answer', 'Sorry, I could not find an answer.')
-        if answer and len(answer) > 3:
-            cache.set(f"chatbot_answer_{question}", {"answer": answer}, timeout=60)
+        # Cache the response if it's valid
+        if response and 'answer' in response and len(response['answer']) > 3:
+            cache.set(f"chatbot_answer_{question}", response, timeout=60)
 
         if DEBUG:
             app.logger.info("Chatbot successfully answered question", extra={'action': 'chatbot_answered'})
-        return jsonify({"answer": answer})
+
+        return jsonify(response)
 
     except Exception as e:
         app.logger.error(f"Error processing chatbot request: {str(e)}", extra={'action': 'chatbot_error'})
         return jsonify({"error": "An error occurred while processing your question."}), 500
+
+    finally:
+        gc.collect()
+
+def call_faq_pipeline(question):
+    # Use the FastAPI app's public URL from Render
+    response = requests.post(
+        'https://chatbot-portfolio-zqwu.onrender.com/faq',
+        json={'question': question, 'context': context}
+    )
+    response.raise_for_status()
+    return response.json()
+
+# def call_faq_pipeline(question):
+#     """
+#     Call the FastAPI service to get the FAQ pipeline answer.
+#     """
+#     static_context = (
+#         "My name is Paul Coleman. I'm a graduate student working towards earning a master's degree in computer science "
+#         "at Utah Valley University. I am working towards becoming an AI/ML Engineer with an interest in applying those skills "
+#         "to Finance, Cybersecurity, or Healthcare sectors. "
+#         "I have 5 years of programming experience with Python and AI/ML frameworks TensorFlow and PyTorch. "
+#         "Most Recent Professional Work Experience or Job Title: Full Stack Web Developer."
+#     )
+#
+#     # Combine static context with the question
+#     context = f"{static_context} {question}"
+#
+#     try:
+#         # Make the HTTP POST request to FastAPI
+#         response = requests.post(
+#             'http://<your-fastapi-service-url>/faq',  # Replace with your FastAPI URL
+#             json={'question': question, 'context': context}
+#         )
+#         response.raise_for_status()  # Raise an error for bad responses (4xx/5xx)
+#
+#         # Return the result from FastAPI
+#         return response.json()
+#     except requests.exceptions.RequestException as e:
+#         app.logger.error(f"Error calling FastAPI service: {str(e)}", extra={'action': 'faq_pipeline_error'})
+#         return {"error": "An error occurred while calling the FAQ service."}
 
 @app.route('/videos/<filename>')
 def serve_video(filename):
@@ -321,7 +331,7 @@ def serve_video(filename):
                          extra={'action': 'serve_video_exception', 'file_name': filename})
         return "Internal Server Error", 500
 
-
+@profile
 def partial_response(file_path, range_header):
     """
     Serve partial content for large video files to support byte-range requests.
@@ -404,6 +414,7 @@ def is_valid_filename(filename):
     pattern = r'^[a-f0-9\-]{36}_[\w\-]+\.(pdf)$'
     return re.match(pattern, filename) is not None
 
+
 def validate_and_save_file(requested):
     """Validate the uploaded file and save it to the configured upload folder."""
     if 'file' not in requested.files:
@@ -437,7 +448,6 @@ def validate_and_save_file(requested):
     return file_path
 
 
-
 def preprocess_question(question):
     """Preprocess the user question by stripping whitespaces and ensuring punctuation."""
     question = question.strip()
@@ -450,28 +460,6 @@ def preprocess_question(question):
     return question
 
 
-def call_faq_pipeline(question, context):
-    sanitized_question = re.sub(r'\s+', ' ', question)[:100]  # Limit length and remove excessive whitespace
-    sanitized_context = re.sub(r'\s+', ' ', context)[:100]    # Similarly sanitize context
-
-    app.logger.info({
-        'action': 'faq_pipeline_called',
-        'question': sanitized_question,
-        'context_snippet': sanitized_context
-    })
-
-    # Ensure the inputs are passed as a dictionary
-    inputs = {
-        "question": question,
-        "context": context
-    }
-    # Perform inference with torch.no_grad() for efficiency
-    with torch.no_grad():
-        result = faq_pipeline(inputs)
-    # Return the result
-    return result
-
-
 def safe_redirect(endpoint):
     """Safely redirect to a predefined list of endpoints to avoid Open Redirect vulnerabilities."""
     if endpoint in ALLOWED_REDIRECTS:
@@ -479,7 +467,6 @@ def safe_redirect(endpoint):
     else:
         app.logger.warning(f"Invalid redirect attempt to: {endpoint}", extra={'action': 'invalid_redirect_attempt'})
         return redirect(url_for('index'))  # Fallback to home page
-
 
 def log_response(response):
     """Log outgoing responses with structured data."""
@@ -495,12 +482,10 @@ def log_response(response):
     })
     return response
 
-
 def calculate_fractal_dimension(image_path):
     """Calculate the fractal dimension of an image and save relevant images."""
     try:
         from PIL import Image
-        import os
 
         # Ensure the image_path is within the UPLOAD_FOLDER
         if not image_path.startswith(app.config['UPLOAD_FOLDER']):
@@ -536,7 +521,6 @@ def calculate_fractal_dimension(image_path):
                          extra={'action': 'fractal_calculation_error'})
         raise
 
-
 def process_image(image):
     """Resize and convert image to grayscale and binary formats."""
     try:
@@ -568,7 +552,6 @@ def process_image(image):
     except Exception as e:
         app.logger.error(f"Error processing image: {str(e)}", extra={'action': 'image_processing_error'})
         raise
-
 
 def perform_box_counting(image_binary):
     """Perform box counting and linear regression to estimate the fractal dimension."""
@@ -607,12 +590,9 @@ def perform_box_counting(image_binary):
         app.logger.error(f"Error during box counting: {str(e)}", extra={'action': 'box_counting_error'})
         raise
 
-
 def save_images(image, image_gray, image_binary, fractal_dimension, log_box_sizes, log_box_counts, intercept):
     """Save the images with unique filenames and return their URLs and file paths."""
     try:
-        from matplotlib import pyplot as plt2
-        import os
 
         static_folder = app.config['UPLOAD_FOLDER']
         os.makedirs(static_folder, exist_ok=True)
@@ -629,7 +609,8 @@ def save_images(image, image_gray, image_binary, fractal_dimension, log_box_size
 
         # Save images
         image.save(image_paths['original'])
-        plt2.imsave(image_paths['grayscale'], image_gray, cmap='gray')
+        plt.imsave(image_paths['grayscale'], image_gray, cmap='gray')
+
         save_fractal_analysis_graph(
             log_box_sizes,
             log_box_counts,
@@ -637,6 +618,7 @@ def save_images(image, image_gray, image_binary, fractal_dimension, log_box_size
             intercept,
             image_paths['analysis']
         )
+        plt
 
         # Convert file paths to URLs
         image_urls = {
@@ -653,7 +635,6 @@ def save_images(image, image_gray, image_binary, fractal_dimension, log_box_size
         app.logger.error(f"Error saving images: {str(e)}", extra={'action': 'save_images_error'})
         raise
 
-
 def save_fractal_analysis_graph(log_box_sizes, log_box_counts, fractal_dimension, intercept, plot_path):
     """Generate and save the fractal dimension analysis graph."""
     try:
@@ -661,11 +642,9 @@ def save_fractal_analysis_graph(log_box_sizes, log_box_counts, fractal_dimension
 
         # Plot actual data points (negating log_box_sizes as before)
         plt.plot(-log_box_sizes, log_box_counts, 'bo', label='Box Counts', markersize=8)
-
         # Plot fit line using negated log_box_sizes
         fit_line = fractal_dimension * (-log_box_sizes) + intercept
         plt.plot(-log_box_sizes, fit_line, 'r--', label='Fit Line', linewidth=2)
-
         # Adjust y-axis limits
         plt.ylim([min(log_box_counts) - 1, max(log_box_counts) + 1])
 
@@ -677,6 +656,7 @@ def save_fractal_analysis_graph(log_box_sizes, log_box_counts, fractal_dimension
 
         # Save the plot with higher resolution
         plt.savefig(plot_path, dpi=300, bbox_inches='tight')
+        plt.clf()
         plt.close()
 
         if DEBUG is True:
@@ -687,13 +667,11 @@ def save_fractal_analysis_graph(log_box_sizes, log_box_counts, fractal_dimension
                          extra={'action': 'save_plot_error'})
         raise
 
-
 def generate_report(fractal_dimension, image_paths):
     try:
         from reportlab.lib.pagesizes import letter
         from reportlab.pdfgen import canvas
         from reportlab.lib.units import inch
-        import os
 
         # Generate a unique and secure filename for the PDF report
         pdf_filename = secure_filename(f'fractal_report_{str(uuid.uuid4())}.pdf')
