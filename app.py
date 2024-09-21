@@ -39,7 +39,7 @@ DEBUG = False
 # Flask app configuration
 app = Flask(__name__)
 
-FASTAPI_URL = "https://app.codebloodedfamily.com/faq/"
+FASTAPI_URL = "https://api.codebloodedfamily.com/faq/"
 
 CORS(app, resources={r"/*": {"origins": ["https://codebloodedfamily.com"]}}, supports_credentials=True)
 
