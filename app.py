@@ -279,7 +279,7 @@ def call_faq_pipeline(question):
 
         # Make the HTTP POST request to FastAPI
         response = requests.post(
-            'https://chatbot-portfolio-zqwu.onrender.com/faq/',
+            'api.codebloodedfamily.com/faq/',
             json=payload,  # This JSON must match FAQRequest model
             timeout=10
         )
