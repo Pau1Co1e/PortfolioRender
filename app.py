@@ -36,6 +36,7 @@ matplotlib.use('Agg')
 
 DEBUG = False
 
+
 # Flask app configuration
 app = Flask(__name__)
 
