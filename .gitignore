@@ -19,11 +19,10 @@ gen
 
 *./instance
 static/docs/chatbot.log
-
 instance/
 /flask_session/
 /static/uploads/
 /static/docs/resume_builder.py
 /server.py
-
 .idea/
+/.venv/
