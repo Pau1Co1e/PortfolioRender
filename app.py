@@ -1,38 +1,43 @@
-import os
-import datetime
-import logging
 import asyncio
-import re
-import uuid
-from urllib.parse import unquote
-from flask import Flask
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
-import torch
+import datetime
 from flask import (
     Flask, render_template, request, jsonify, flash, redirect, url_for,
-    send_file, session, send_from_directory, Response
+    send_file, session, send_from_directory, Response, g
 )
 from flask_caching import Cache
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from flask_sqlalchemy import SQLAlchemy
-from werkzeug.utils import secure_filename
-from pythonjsonlogger import jsonlogger  # JSON logging
-from scipy.stats import linregress
-# import matplotlib
-import numpy as np
+from flask_session import Session
+from flask_wtf.csrf import CSRFProtect
+import logging
+from logging.handlers import RotatingFileHandler
 from matplotlib import pyplot as plt
 import mimetypes
-# import torch
+import numpy as np
+import os
+from pythonjsonlogger import jsonlogger  # JSON logging
+import re
+import secrets
+from scipy.stats import linregress
 from transformers import pipeline
-from flask_wtf.csrf import CSRFProtect
-# faq_pipeline = None
-
-# Configure matplotlib
+from urllib.parse import unquote
+import uuid
+from werkzeug.utils import secure_filename
+import torch
 import matplotlib
+
 matplotlib.use('Agg')
+DEBUG = False
 
 # Flask app configuration
 app = Flask(__name__)
+
+app.config['SESSION_TYPE'] = 'filesystem'
+
+# Define upload and video folders with environment variables and defaults
+app.config['UPLOAD_FOLDER'] = os.getenv('UPLOAD_FOLDER', os.path.join(app.root_path, 'static/uploads'))
+app.config['VIDEO_FOLDER'] = os.getenv('VIDEO_FOLDER', os.path.join(app.root_path, 'static/videos'))
 
 # Constants
 ALLOWED_REDIRECTS = {
@@ -40,59 +45,25 @@ ALLOWED_REDIRECTS = {
     'fractal_result', 'fractal', 'chatbot', 'upload', 'financial', 'download_generated_report'
 }
 
-# App settings
-app.secret_key = os.getenv('SECRET_KEY', 'your_default_secret_key')
+SECRET_KEY = os.getenv('SECRET_KEY')
+if not SECRET_KEY:
+    raise ValueError("No SECRET_KEY set for Flask application")
+app.secret_key = SECRET_KEY
 
 if app.config.get("ENV", "development") == "production":
     app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv('DATABASE_URL')
 else:
     app.config["SQLALCHEMY_DATABASE_URI"] = 'sqlite:///site.db'
 
+app.config['SESSION_COOKIE_SECURE'] = app.config.get('ENV') == 'production'
+
 app.config.update(
-    UPLOAD_FOLDER=os.path.join(app.root_path, 'static/uploads/'),
-    VIDEO_FOLDER=os.path.join(app.root_path, 'static/videos/'),
     MAX_CONTENT_LENGTH=16 * 1024 * 1024,  # Limit file size to 16MB
     ALLOWED_EXTENSIONS={'png', 'jpg', 'jpeg', 'gif'},
     SQLALCHEMY_TRACK_MODIFICATIONS=False,
-    SESSION_COOKIE_SECURE=True,  # Set to True if using HTTPS in production
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE='Lax',
 )
-
-# Initialize Extensions
-csrf = CSRFProtect(app)
-db = SQLAlchemy(app)
-cache = Cache(app, config={'CACHE_TYPE': 'simple'})  # Caching storage with Redis for production
-
-# Initialize Limiter
-limiter = Limiter(get_remote_address, app=app, default_limits=["200 per day", "50 per hour"])
-
-@app.errorhandler(400)
-def bad_request(error):
-    app.logger.error(f"Bad Request: {error}", extra={'action': 'bad_request'})
-    return f"Bad Request: {error} 400", 400
-
-
-@app.errorhandler(500)
-def server_error(error):
-    app.logger.error(f"Server Error: {error}", extra={'action': 'server_error'})
-    return f"Server Error: {error} 500", 500
-
-
-# Handle CSRF errors without CSRFError import
-@app.errorhandler(400)
-def handle_csrf_error(e):
-    if hasattr(e, 'description') and 'CSRF' in e.description:
-        app.logger.error(f"CSRF Error: {e.description}", extra={'action': 'csrf_error'})
-        return render_template('csrf_error.html', reason=e.description), 400
-    return "Bad Request", 400
-
-# Logging configuration
-logHandler = logging.StreamHandler()
-formatter = jsonlogger.JsonFormatter('%(asctime)s %(levelname)s %(message)s %(funcName)s %(lineno)d')
-logHandler.setFormatter(formatter)
-app.logger.addHandler(logHandler)
-app.logger.setLevel(logging.INFO)
 
 # global faq_pipeline
 # Preload the AI model
@@ -102,175 +73,76 @@ faq_pipeline = pipeline(
     device=0 if torch.cuda.is_available() else -1
 )
 
+# After loading the model
+faq_pipeline.model.eval()
+def create_directories():
+    """Create necessary directories if they don't exist."""
+    for folder_key in ['UPLOAD_FOLDER', 'VIDEO_FOLDER']:
+        folder_path = app.config.get(folder_key)
+        if folder_path and not os.path.exists(folder_path):
+            os.makedirs(folder_path, exist_ok=True)
+            app.logger.info(f"Created directory: {folder_path}", extra={'action': 'create_directory'})
 
-# Utility functions
-# def allowed_file(filename):
-#     """Check if the uploaded file has an allowed extension."""
-#     return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
-def allowed_file(filename):
-    allowed_extensions = {'png', 'jpg', 'jpeg', 'gif'}
-    mime_type, _ = mimetypes.guess_type(filename)
-    return mime_type in ['image/png', 'image/jpeg', 'image/gif'] and \
-        '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
+create_directories()
 
+# Initialize Extensions
+csrf = CSRFProtect(app)
 
-def validate_and_save_file(requested):
-    """Validate the uploaded file and save it to the configured upload folder."""
-    if 'file' not in requested.files:
-        app.logger.error('No file part found in the request', extra={'action': 'file_validation_error'})
-        raise ValueError('No file part')
+db = SQLAlchemy(app)
+cache = Cache(app, config={'CACHE_TYPE': 'simple'})  # Use Redis in production
+# Initialize Limiter
+limiter = Limiter(get_remote_address, app=app, default_limits=["200 per day", "50 per hour"])
+Session(app)
 
-    file = requested.files['file']
-    if file.filename == '':
-        app.logger.error('No file selected', extra={'action': 'file_validation_error'})
-        raise ValueError('No selected file')
-
-    if not allowed_file(file.filename):
-        app.logger.error(f"Invalid file format: {file.filename}", extra={'action': 'file_validation_error'})
-        raise ValueError('Invalid file format')
-
-    filename = secure_filename(file.filename)
-    unique_id = str(uuid.uuid4())
-    file_name = f"{unique_id}_{filename}"
-    file_path = os.path.join(app.config['UPLOAD_FOLDER'], file_name)
-
-    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-    file.save(file_path)
-
-    app.logger.info(f"File saved successfully at {file_path}", extra={'action': 'file_saved', 'uploaded_filename': file_name})
-    return file_path
-
-
-
-def preprocess_question(question):
-    """Preprocess the user question by stripping whitespaces and ensuring punctuation."""
-    question = question.strip()
-    if len(question) > 200:
-         raise ValueError('Question is too long. Please limit your question to 200 characters.')
-    if not question.endswith('?'):
-        question += '?'
-    app.logger.info(f"Processed question: {question}", extra={'action': 'question_preprocessed'})
-    return question
-
-
-def call_faq_pipeline(question, context):
-    """Invoke the FAQ pipeline model."""
-    # global faq_pipeline
-    # from transformers import pipeline
-    import torch  # Import torch here
-    app.logger.info({
-        'action': 'faq_pipeline_called',
-        'question': question,
-        'context_snippet': context[:100]
-    })
-
-    # Set model to evaluation mode
-    faq_pipeline.model.eval()
-    # Ensure the inputs are passed as a dictionary
-    inputs = {
-        "question": question,
-        "context": context
-    }
-    # Perform inference with torch.no_grad() for efficiency
-    with torch.no_grad():
-        result = faq_pipeline(inputs)
-    # Return the result
-    return result
-
-
-def safe_redirect(endpoint):
-    """Safe redirect to a predefined list of endpoints to avoid open redirect vulnerabilities."""
-    if endpoint in ALLOWED_REDIRECTS:
-        return redirect(url_for(endpoint))
-    else:
-        app.logger.warning(f"Invalid redirect to: {endpoint}", extra={'action': 'invalid_redirect_attempt'})
-        return redirect(url_for('index'))  # Default to the homepage for safety
-
-
-# Structured Logging for Requests and Responses
-def log_request():
-    """Log incoming requests with structured data."""
-    app.logger.info({
-        'action': 'request_received',
-        'method': request.method,
-        'url': request.url,
-        'remote_addr': request.remote_addr,
-        'user_agent': request.user_agent.string,
-        'query_string': request.query_string.decode('utf-8'),
-    })
-
-
-def log_response(response):
-    """Log outgoing responses with structured data."""
-    app.logger.info({
-        'action': 'response_sent',
-        'status_code': response.status_code,
-        'content_length': response.content_length,
-    })
-    return response
-
+# Logging configuration
+if not app.logger.handlers:
+    logHandler = RotatingFileHandler('app.log', maxBytes=1000000, backupCount=3)
+    formatter = jsonlogger.JsonFormatter('%(asctime)s %(levelname)s %(message)s %(funcName)s %(lineno)d')
+    logHandler.setFormatter(formatter)
+    app.logger.addHandler(logHandler)
+    app.logger.setLevel(logging.INFO)
 
 # Flask routes
 @app.before_request
 def before_request():
     """Actions to perform before each request."""
-    app.logger.info({
-        'action': 'request_received',
-        'method': request.method,
-        'url': request.url,
-        'remote_addr': request.remote_addr,
-        'user_agent': request.user_agent.string,
-        'query_string': request.query_string.decode('utf-8'),
-    })
-    db.create_all()
 
+    """Generate a unique nonce for each request and store it in the global `g` object."""
+    g.nonce = secrets.token_hex(16)  # Generates a 32-character hexadecimal string
+    app.logger.debug(f"Generated nonce: {g.nonce}", extra={'action': 'nonce_generated'})
 
-# @app.after_request
-# def after_request(response):
-#     """Actions to perform after each request."""
-#     # Add CORS headers
-#     response.headers['Access-Control-Allow-Origin'] = 'https://portfoliorender-p89i.onrender.com'
-#     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
-#     response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
-#     return log_response(response)
-@app.after_request
-# def after_request(response):
-#     """Actions to perform after each request."""
-#     # Add CORS headers
-#     response.headers['Access-Control-Allow-Origin'] = 'https://portfoliorender-p89i.onrender.com'
-#     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
-#     response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
-#     # Add Content Security Policy header
-#     response.headers['Content-Security-Policy'] = (
-#         "default-src 'self'; "
-#         "script-src 'self' 'unsafe-inline' https://code.jquery.com; "
-#         "style-src 'self' 'unsafe-inline'; "
-#         "img-src 'self' data:; "
-#         "font-src 'self'; "
-#         "connect-src 'self';"
-#     )
-#     # Apply Security Headers
-#     response.headers['X-Content-Type-Options'] = 'nosniff'
-#     response.headers['X-Frame-Options'] = 'SAMEORIGIN'
-#     response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains; preload'
-#
-#     return log_response(response)
+    # app.logger.info({
+    #     'action': 'request_received',
+    #     'method': request.method,
+    #     'url': request.url,
+    #     'remote_addr': request.remote_addr,
+    #     'user_agent': request.user_agent.string,
+    #     'query_string': request.query_string.decode('utf-8'),
+    # })
+
+# Inject nonce into templates
+@app.context_processor
+def inject_nonce():
+    """Inject the nonce into the template context."""
+    return dict(nonce=getattr(g, 'nonce', ''))
+
 @app.after_request
 def after_request(response):
-    """Actions to perform after each request."""
+    """Set security headers after each request."""
     # Add CORS headers
     response.headers['Access-Control-Allow-Origin'] = 'https://portfoliorender-p89i.onrender.com'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
 
-    # Add Content Security Policy header
+    # Add Content Security Policy header with nonce
+    nonce = getattr(g, 'nonce', '')
     response.headers['Content-Security-Policy'] = (
-        "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline' https://code.jquery.com https://cdn.jsdelivr.net; "
-        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+        f"default-src 'self'; "
+        f"script-src 'self' 'nonce-{nonce}' https://code.jquery.com https://cdn.jsdelivr.net; "
+        f"style-src 'self' 'nonce-{nonce}' https://cdn.jsdelivr.net; "
         "img-src 'self' data:; "
-        "connect-src 'self' https://api.huggingface.co; "  # Chatbot external API
-        "frame-src 'self' https://docs.google.com; "  # Contact form Google Forms iframe
+        "connect-src 'self' https://api.huggingface.co; "
+        "frame-src 'self' https://docs.google.com; "
         "font-src 'self' https://cdn.jsdelivr.net; "
     )
 
@@ -278,124 +150,125 @@ def after_request(response):
     response.headers['X-Content-Type-Options'] = 'nosniff'
     response.headers['X-Frame-Options'] = 'SAMEORIGIN'
     response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains; preload'
+    response.headers['Referrer-Policy'] = 'no-referrer-when-downgrade'
+    response.headers['Permissions-Policy'] = "geolocation=(), microphone=(), camera=()"
 
     return log_response(response)
 
 
-
 @app.errorhandler(400)
-def bad_request(error):
+def handle_bad_request(error):
+    if hasattr(error, 'description') and 'CSRF' in error.description:
+        app.logger.error(f"CSRF Error: {error.description}", extra={'action': 'csrf_error'})
+        return render_template('csrf_error.html', reason=error.description), 400
     app.logger.error(f"Bad Request: {error}", extra={'action': 'bad_request'})
-    return f"Bad Request: {error} 400", 400
+    return "Bad Request", 400
+
+@app.errorhandler(404)
+def page_not_found(error):
+    app.logger.error(f"Page not found: {error}", extra={'action': 'page_not_found'})
+    return render_template('404.html'), 404
+
+@app.errorhandler(429)
+def ratelimit_handler(e):
+    return jsonify(error="Rate limit exceeded. Please try again later."), 429
 
 
 @app.errorhandler(500)
-def internal_error(error):
-    app.logger.error(f"Server Error: {error}")
+def handle_server_error(error):
+    app.logger.error(f"Server Error: {error}", extra={'action': 'server_error'})
     return "Internal Server Error", 500
-
-
-@app.errorhandler(400)
-def handle_csrf_error(e):
-    # Check if the error is related to CSRF
-    if 'CSRF' in str(e):
-        app.logger.error(f"CSRF Error: {str(e)}", extra={'action': 'csrf_error'})
-        return render_template('csrf_error.html', reason="CSRF token is missing or incorrect"), 400
-    return "Bad Request", 400
-
 
 @app.route('/')
 def index():
-    app.logger.info("Rendered index page", extra={'action': 'render_page', 'page': 'index'})
+    if DEBUG is True:
+        app.logger.info("Rendered index page", extra={'action': 'render_page', 'page': 'index'})
     return render_template('index.html')
-
 
 @app.route('/about_me')
 def about_me():
-    app.logger.info("Rendered about_me page", extra={'action': 'render_page', 'page': 'about_me'})
+    if DEBUG is True:
+        app.logger.info("Rendered about_me page", extra={'action': 'render_page', 'page': 'about_me'})
     return render_template('about_me.html')
 
 
-# @app.route('/contact', methods=['GET', 'POST'])
-# def contact():
-#     if request.method == 'POST':
-#         # Process the form data if provided (you can add your form logic here)
-#         # Example: Save to database or send email
-#         flash('Your message has been sent successfully!', 'success')
-#         app.logger.info('Contact form submitted', extra={'action': 'contact_form_submitted'})
-#         return redirect(url_for('contact'))
-#
-#     app.logger.info("Rendered contact page", extra={'action': 'render_page', 'page': 'contact'})
-#     return render_template('contact.html')
 @app.route('/contact', methods=['GET', 'POST'])
 def contact():
     if request.method == 'POST':
         flash('Your message has been sent successfully!', 'success')
-        app.logger.info('Contact form submitted', extra={'action': 'contact_form_submitted'})
+        if DEBUG is True:
+            app.logger.info('Contact form submitted', extra={'action': 'contact_form_submitted'})
         return redirect(url_for('contact'))
-
     return render_template('contact.html')
+
 
 @app.route('/download')
 def download():
-    app.logger.info("Rendered download page", extra={'action': 'render_page', 'page': 'download'})
+    if DEBUG is True:
+        app.logger.info("Rendered download page", extra={'action': 'render_page', 'page': 'download'})
     return render_template('download.html')
 
 
 @app.route('/experience', methods=['GET', 'POST'])
 def experience():
-    app.logger.info("Rendered experience page", extra={'action': 'render_page', 'page': 'experience'})
+    if DEBUG is True:
+        app.logger.info("Rendered experience page", extra={'action': 'render_page', 'page': 'experience'})
     return render_template('experience.html')
 
 
 @app.route('/chatbot')
 def chatbot():
     session['visit_time'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    app.logger.info(f"Chatbot page accessed at {session['visit_time']}", extra={'action': 'chatbot_accessed'})
+    if DEBUG is True:
+        app.logger.info(f"Chatbot page accessed at {session['visit_time']}", extra={'action': 'chatbot_accessed'})
     return render_template('chatbot.html')
 
-@csrf.exempt
+
 @app.route('/chatbot-answer', methods=['POST'])
+@csrf.exempt  # Exempt this route from CSRF protection
 @limiter.limit("5 per minute")
-async def chatbot_answer():
+def chatbot_answer():
     try:
         data = request.get_json()
         if not data or 'question' not in data:
-            app.logger.warning("No question provided in chatbot request", extra={'action': 'chatbot_error'})
+            if DEBUG:
+                app.logger.warning("No question provided in chatbot request", extra={'action': 'chatbot_error'})
             return jsonify({"error": "No question provided"}), 400
 
         try:
             question = preprocess_question(data['question'])
         except ValueError as ve:
-            app.logger.warning(f"Invalid question: {ve}", extra={'action': 'chatbot_error'})
+            if DEBUG:
+                app.logger.warning(f"Invalid question: {ve}", extra={'action': 'chatbot_error'})
             return jsonify({"error": "Invalid question provided."}), 400
 
-        # question = preprocess_question(data['question'])
         cached_response = cache.get(f"chatbot_answer_{question}")
         if cached_response:
-            app.logger.info("Returning cached response", extra={'action': 'cached_response_returned'})
+            if DEBUG:
+                app.logger.info("Returning cached response", extra={'action': 'cached_response_returned'})
             return jsonify(cached_response)
+
 
         # Static context
         static_context = (
-            "My name is Paul Coleman. I'm currently enrolled as a graduate student in the computer science masters "
-            "program at Utah Valley University."
+            "My name is Paul Coleman. I'm a graduate student working towards earning a masters degree in computer science "
+            "at Utah Valley University."
             "I am working towards becoming an AI/ML Engineer with an interest in applying those skills to Finance, "
             "Cybersecurity, or Healthcare sectors. "
             "I have 5 years of programming experience with Python and AI/ML frameworks TensorFlow and PyTorch."
             "Most Recent Professional Work Experience or Job Title: Full Stack Web Developer."
-            "Tools and programming languages that I used when I was working as a full stack web developer: C#, "
-            "ASP.NET Core."
-            "Earned a Bachelors degree in Computer Science on August 2022 from Utah Valley University."
-            "I will be graduating with a masters degree in Computer Science from Utah Valley University in the Fall "
+            "Tools and programming languages that I used when I was working as a full stack web developer: "
+            "JavaScript, C#, SQL, .NET, ASP.NET Core., HTML/CSS, AJAX"
+            "I have a Bachelors degree in Computer Science and graduated on August 2022 from Utah Valley University."
+            "I will graduate with a Masters degree in Computer Science from Utah Valley University in the Fall "
             "of 2025."
-            "AI related skills and expertise that I have are mathematics and statistics, discrete mathematics, "
-            "numerical analysis, probabilities and statistical analysis, data analysis, calculus, and linear algebra. "
-            "Full Stack Developer Skills and Experience: Flask, C#, PHP, Search Engine Optimization, User Experience, "
-            "Design, User Interface Design, Responsive Design, Postgres, Git, Swift. "
-            "Other Known Programming Languages: Python, C#, Java, SQL, HTML5/CSS3, JavaScript."
+            "Skills and expertise that I have are mathematics and statistics, data preprocessing, neural networks, multivariable calculus, discrete mathematics, "
+            "numerical analysis, probabilities and statistical analysis, data science, and linear algebra. "
+            "Full Stack Developer Skills and programming languages: Flask, C#, PHP, SEO, User Experience, Network Security, "
+            "UI/UX, Responsive Design, Redis, Postgres, Git, Swift, Docker, AWS. "
+            "Programming Languages: Python, C#, Java, SQL, HTML5/CSS3, JavaScript."
             "My email is engineering.paul@icloud.com."
-            "Completed an internship as a robotics software engineer. The internship was my introduction to machine "
+            "Completed an internship as a robotics software engineer; the internship was my introduction to machine "
             "learning and artificial intelligence and how to apply it in the real world. As an intern, I developed "
             "computer vision, natural language processing, and autonomous functionalities for humanoid robots."
 
@@ -404,112 +277,34 @@ async def chatbot_answer():
         # Maintain conversation history in the session (limit to last 3 questions)
         session['conversation_history'] = session.get('conversation_history', [])
         session['conversation_history'].append(question)
-        # Keep only the last 3 questions
         session['conversation_history'] = session['conversation_history'][-3:]
 
         # Combine static context with conversation history to create full context
         conversation_context = ' '.join(session['conversation_history'])
         full_context = f"{static_context} {conversation_context}"
-        app.logger.info(f"Full context prepared for chatbot", extra={'action': 'context_prepared'})
+        if DEBUG:
+            app.logger.info("Full context prepared for chatbot", extra={'action': 'context_prepared'})
 
-        # Perform the model inference asynchronously
-        loop = asyncio.get_event_loop()
-        result = await loop.run_in_executor(
-            None, call_faq_pipeline, question, full_context
-        )
+        # Perform the model inference
+        result = call_faq_pipeline(question, full_context)
 
         answer = result.get('answer', 'Sorry, I could not find an answer.')
         if answer and len(answer) > 3:
             cache.set(f"chatbot_answer_{question}", {"answer": answer}, timeout=60)
 
-        app.logger.info("Chatbot successfully answered question", extra={'action': 'chatbot_answered'})
+        if DEBUG:
+            app.logger.info("Chatbot successfully answered question", extra={'action': 'chatbot_answered'})
         return jsonify({"answer": answer})
 
     except Exception as e:
         app.logger.error(f"Error processing chatbot request: {str(e)}", extra={'action': 'chatbot_error'})
-        return jsonify({"error": "An error occurred while processing your question"}), 500
-# @app.route('/chatbot-answer', methods=['POST'])
-# @limiter.limit("5 per minute")
-# @csrf.exempt
-# async def chatbot_answer():
-#     try:
-#         data = request.get_json()
-#         if not data or 'question' not in data:
-#             app.logger.warning("No question provided in chatbot request", extra={'action': 'chatbot_error'})
-#             return jsonify({"error": "No question provided"}), 400
-#
-#         try:
-#             question = preprocess_question(data['question'])
-#         except ValueError as ve:
-#             app.logger.warning(f"Invalid question: {ve}", extra={'action': 'chatbot_error'})
-#             return jsonify({"error": str(ve)}), 400
-#
-#         question = preprocess_question(data['question'])
-#         cached_response = cache.get(f"chatbot_answer_{question}")
-#
-#         if cached_response:
-#             app.logger.info("Returning cached response", extra={'action': 'cached_response_returned'})
-#             return jsonify(cached_response)
-#
-#         # Static context
-#         static_context = (
-#             "My name is Paul Coleman. I'm currently enrolled as a graduate student in the computer science masters "
-#             "program at Utah Valley University."
-#             "I am working towards becoming an AI/ML Engineer with an interest in applying those skills to Finance, "
-#             "Cybersecurity, or Healthcare sectors. "
-#             "I have 5 years of programming experience with Python and AI/ML frameworks TensorFlow and PyTorch."
-#             "Most Recent Professional Work Experience or Job Title: Full Stack Web Developer."
-#             "Tools and programming languages that I used when I was working as a full stack web developer: C#, "
-#             "ASP.NET Core."
-#             "Earned a Bachelors degree in Computer Science on August 2022 from Utah Valley University."
-#             "I will be graduating with a masters degree in Computer Science from Utah Valley University in the Fall "
-#             "of 2025."
-#             "AI related skills and expertise that I have are mathematics and statistics, discrete mathematics, "
-#             "numerical analysis, probabilities and statistical analysis, data analysis, calculus, and linear algebra. "
-#             "Full Stack Developer Skills and Experience: Flask, C#, PHP, Search Engine Optimization, User Experience, "
-#             "Design, User Interface Design, Responsive Design, Postgres, Git, Swift. "
-#             "Other Known Programming Languages: Python, C#, Java, SQL, HTML5/CSS3, JavaScript."
-#             "My email is engineering.paul@icloud.com."
-#             "Completed an internship as a robotics software engineer. The internship was my introduction to machine "
-#             "learning and artificial intelligence and how to apply it in the real world. As an intern, I developed "
-#             "computer vision, natural language processing, and autonomous functionalities for humanoid robots."
-#
-#         )
-#
-#         # Maintain conversation history in the session (limit to last 3 questions)
-#         session['conversation_history'] = session.get('conversation_history', [])
-#         session['conversation_history'].append(question)
-#         # Keep only the last 3 questions
-#         session['conversation_history'] = session['conversation_history'][-3:]
-#
-#         # Combine static context with conversation history to create full context
-#         conversation_context = ' '.join(session['conversation_history'])
-#         full_context = f"{static_context} {conversation_context}"
-#         app.logger.info(f"Full context prepared for chatbot", extra={'action': 'context_prepared'})
-#
-#         # Perform the model inference asynchronously
-#         loop = asyncio.get_event_loop()
-#         result = await loop.run_in_executor(
-#             None, call_faq_pipeline, question, full_context
-#         )
-#
-#         answer = result.get('answer', 'Sorry, I could not find an answer.')
-#         if answer and len(answer) > 3:
-#             cache.set(f"chatbot_answer_{question}", {"answer": answer}, timeout=60)
-#
-#         app.logger.info("Chatbot successfully answered question", extra={'action': 'chatbot_answered'})
-#         return jsonify({"answer": answer})
-#
-#     except Exception as e:
-#         app.logger.error(f"Error processing chatbot request: {str(e)}", extra={'action': 'chatbot_error'})
-#         return jsonify({"error": "An error occurred while processing your question"}), 500
-
+        return jsonify({"error": "An error occurred while processing your question."}), 500
 
 @app.route('/videos/<filename>')
 def serve_video(filename):
     filename = secure_filename(filename)
     """Serve video files with byte-range support for efficient streaming."""
-    # range_header = request.headers.get('Range', None)
+    range_header = request.headers.get('Range', None)
     video_path = os.path.join(app.config['VIDEO_FOLDER'], filename)
 
     if not os.path.exists(video_path):
@@ -518,7 +313,8 @@ def serve_video(filename):
 
     try:
         response = partial_response(video_path, range_header)
-        app.logger.info(f"Serving video file: {filename}", extra={'action': 'serve_video', 'file_name': filename})
+        if DEBUG is True:
+            app.logger.info(f"Serving video file: {filename}", extra={'action': 'serve_video', 'file_name': filename})
         return response
     except Exception as e:
         app.logger.error(f"Error serving video file: {e}",
@@ -546,18 +342,20 @@ def partial_response(file_path, range_header):
         f.seek(start)
         data = f.read(length)
 
+    mime_type, _ = mimetypes.guess_type(file_path)
+    if mime_type is None:
+        mime_type = 'application/octet-stream'  # Fallback MIME type
+
     headers = {
         'Content-Range': f'bytes {start}-{end}/{file_size}',
         'Accept-Ranges': 'bytes',
         'Content-Length': str(length),
-        'Content-Type': 'video/mp4',
+        'Content-Type': mime_type,
     }
-
     return Response(data, status=206, headers=headers)
 
 
 @app.route('/fractal', methods=['GET', 'POST'])
-@csrf.exempt
 def fractal():
     if request.method == 'POST':
         try:
@@ -590,6 +388,112 @@ def fractal():
 
     # For GET requests, render the fractal.html template
     return render_template('fractal.html')
+
+
+# Utility functions
+def allowed_file(filename):
+    allowed_extensions = {'png', 'jpg', 'jpeg', 'gif'}
+    mime_type, _ = mimetypes.guess_type(filename)
+    return mime_type in ['image/png', 'image/jpeg', 'image/gif'] and \
+        '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
+
+
+def is_valid_filename(filename):
+    """Validate the filename against a specific pattern."""
+    # Example pattern: UUID followed by an underscore and then the original filename
+    pattern = r'^[a-f0-9\-]{36}_[\w\-]+\.(pdf)$'
+    return re.match(pattern, filename) is not None
+
+def validate_and_save_file(requested):
+    """Validate the uploaded file and save it to the configured upload folder."""
+    if 'file' not in requested.files:
+        app.logger.error('No file part found in the request', extra={'action': 'file_validation_error'})
+        raise ValueError('Unable To Validate File')
+
+    file = requested.files['file']
+    if file.filename == '':
+        app.logger.error('No file selected', extra={'action': 'file_validation_error'})
+        raise ValueError('No selected file')
+
+    if not allowed_file(file.filename):
+        app.logger.error(f"Invalid file format: {file.filename}", extra={'action': 'file_validation_error'})
+        raise ValueError('Invalid file format')
+
+    filename = secure_filename(file.filename)
+    unique_id = str(uuid.uuid4())
+    file_name = f"{unique_id}_{filename}"
+    file_path = os.path.join(app.config['UPLOAD_FOLDER'], file_name)
+
+    upload_folder = os.path.abspath(app.config['UPLOAD_FOLDER'])
+    # file_path = os.path.abspath(file_path)
+    if not file_path.startswith(upload_folder):
+        raise ValueError('Invalid file path')
+
+    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+    file.save(file_path)
+    if DEBUG:
+        app.logger.info(f"File saved successfully at {file_path}",
+                        extra={'action': 'file_saved', 'uploaded_filename': file_name})
+    return file_path
+
+
+
+def preprocess_question(question):
+    """Preprocess the user question by stripping whitespaces and ensuring punctuation."""
+    question = question.strip()
+    if len(question) > 200:
+        raise ValueError('Question is too long. Please limit your question to 200 characters.')
+    if not question.endswith('?'):
+        question += '?'
+    if DEBUG is True:
+        app.logger.info(f"Processed question: {question}", extra={'action': 'question_preprocessed'})
+    return question
+
+
+def call_faq_pipeline(question, context):
+    sanitized_question = re.sub(r'\s+', ' ', question)[:100]  # Limit length and remove excessive whitespace
+    sanitized_context = re.sub(r'\s+', ' ', context)[:100]    # Similarly sanitize context
+
+    app.logger.info({
+        'action': 'faq_pipeline_called',
+        'question': sanitized_question,
+        'context_snippet': sanitized_context
+    })
+
+    # Ensure the inputs are passed as a dictionary
+    inputs = {
+        "question": question,
+        "context": context
+    }
+    # Perform inference with torch.no_grad() for efficiency
+    with torch.no_grad():
+        result = faq_pipeline(inputs)
+    # Return the result
+    return result
+
+
+def safe_redirect(endpoint):
+    """Safely redirect to a predefined list of endpoints to avoid Open Redirect vulnerabilities."""
+    if endpoint in ALLOWED_REDIRECTS:
+        return redirect(url_for(endpoint))
+    else:
+        app.logger.warning(f"Invalid redirect attempt to: {endpoint}", extra={'action': 'invalid_redirect_attempt'})
+        return redirect(url_for('index'))  # Fallback to home page
+
+
+def log_response(response):
+    """Log outgoing responses with structured data."""
+    app.logger.info({
+        'action': 'response_sent',
+        'status_code': response.status_code,
+        'content_length': response.content_length,
+        'method': request.method,
+        'url': request.url,
+        'remote_addr': request.remote_addr,
+        'user_agent': request.user_agent.string,
+        'query_string': request.query_string.decode('utf-8'),
+    })
+    return response
 
 
 def calculate_fractal_dimension(image_path):
@@ -636,7 +540,8 @@ def calculate_fractal_dimension(image_path):
 def process_image(image):
     """Resize and convert image to grayscale and binary formats."""
     try:
-        app.logger.info("Converting image to grayscale", extra={'action': 'image_processing'})
+        if DEBUG is True:
+            app.logger.info("Converting image to grayscale", extra={'action': 'image_processing'})
 
         # Resize to a smaller size, e.g., 512x512
         image = image.resize((512, 512))
@@ -649,11 +554,13 @@ def process_image(image):
 
         # Convert image to NumPy array and normalize
         image_gray = np.array(image_gray_image, dtype=np.float32) / 255.0  # Normalize to [0, 1]
-        app.logger.info(f"image_gray type: {type(image_gray)}, shape: {image_gray.shape}")
+        if DEBUG is True:
+            app.logger.info(f"image_gray type: {type(image_gray)}, shape: {image_gray.shape}")
 
         # Create binary image
         image_binary = image_gray < 0.5
-        app.logger.info(f"image_binary type: {type(image_binary)}, shape: {image_binary.shape}")
+        if DEBUG is True:
+            app.logger.info(f"image_binary type: {type(image_binary)}, shape: {image_binary.shape}")
 
         # Return resized image, image_gray, image_binary
         return image, image_gray, image_binary
@@ -666,14 +573,17 @@ def process_image(image):
 def perform_box_counting(image_binary):
     """Perform box counting and linear regression to estimate the fractal dimension."""
     try:
-        app.logger.info(f"image_binary type: {type(image_binary)}")
-        app.logger.info(f"image_binary shape: {image_binary.shape}")
+        if DEBUG is True:
+            app.logger.info(f"image_binary type: {type(image_binary)}")
+            app.logger.info(f"image_binary shape: {image_binary.shape}")
+
         # Proceed with box counting
         # Define box sizes
         min_box_size, max_box_size, n_sizes = 2, min(image_binary.shape) // 4, 10
         sizes = np.floor(np.logspace(np.log10(min_box_size), np.log10(max_box_size), num=n_sizes)).astype(int)
         unique_sizes = np.unique(sizes)
         counts = []
+
         # Perform box counting
         for size in unique_sizes:
             # Process one size at a time to limit memory usage
@@ -682,13 +592,16 @@ def perform_box_counting(image_binary):
                 np.arange(0, image_binary.shape[1], size), axis=1)
             counts.append(np.count_nonzero(covered_boxes > 0))
             del covered_boxes  # Free memory after use
+
         # Log-transform box sizes and counts
         log_box_sizes, log_box_counts = np.log(unique_sizes), np.log(counts)
+
         # Perform linear regression on un-centered data
         slope, intercept, r_value, p_value, std_err = linregress(log_box_sizes, log_box_counts)
         fractal_dimension = -slope  # Fractal dimension is the negative slope
-        app.logger.info(f"Fractal dimension calculated: {fractal_dimension}, R-squared: {r_value ** 2}",
-                        extra={'action': 'box_counting_done'})
+        if DEBUG is True:
+            app.logger.info(f"Fractal dimension calculated: {fractal_dimension}, R-squared: {r_value ** 2}",
+                            extra={'action': 'box_counting_done'})
         return fractal_dimension, log_box_sizes, log_box_counts, intercept
     except Exception as e:
         app.logger.error(f"Error during box counting: {str(e)}", extra={'action': 'box_counting_error'})
@@ -718,12 +631,12 @@ def save_images(image, image_gray, image_binary, fractal_dimension, log_box_size
         image.save(image_paths['original'])
         plt2.imsave(image_paths['grayscale'], image_gray, cmap='gray')
         save_fractal_analysis_graph(
-             log_box_sizes,
-             log_box_counts,
-             fractal_dimension,
-             intercept,
-             image_paths['analysis']
-         )
+            log_box_sizes,
+            log_box_counts,
+            fractal_dimension,
+            intercept,
+            image_paths['analysis']
+        )
 
         # Convert file paths to URLs
         image_urls = {
@@ -732,7 +645,8 @@ def save_images(image, image_gray, image_binary, fractal_dimension, log_box_size
         }
 
         # Return both URLs and file paths
-        app.logger.info(f"Images saved successfully: {image_paths}", extra={'action': 'images_saved'})
+        if DEBUG is True:
+            app.logger.info(f"Images saved successfully: {image_paths}", extra={'action': 'images_saved'})
         return image_urls, image_paths
 
     except Exception as e:
@@ -765,7 +679,8 @@ def save_fractal_analysis_graph(log_box_sizes, log_box_counts, fractal_dimension
         plt.savefig(plot_path, dpi=300, bbox_inches='tight')
         plt.close()
 
-        app.logger.info(f"Fractal dimension analysis graph saved to {plot_path}", extra={'action': 'plot_saved'})
+        if DEBUG is True:
+            app.logger.info(f"Fractal dimension analysis graph saved to {plot_path}", extra={'action': 'plot_saved'})
 
     except Exception as e:
         app.logger.error(f"Error saving fractal dimension analysis graph: {str(e)}",
@@ -821,10 +736,10 @@ def generate_report(fractal_dimension, image_paths):
                 else:
                     app.logger.error(f"Image file does not exist: {image_file_path}",
                                      extra={'action': 'missing_image', 'path': image_file_path})
-                    raise FileNotFoundError(f"Image file does not exist: {image_file_path}")
+                    raise FileNotFoundError("Image file does not exist.")
             else:
                 app.logger.error(f"Image path is invalid: {path}", extra={'action': 'missing_image', 'path': path})
-                raise ValueError(f"Image path is invalid: {path}")
+                raise ValueError("Path does not exist.")
 
         # Add hyperlink to navigate back to the Projects page
         c.setFont("Helvetica-Bold", 12)
@@ -834,7 +749,8 @@ def generate_report(fractal_dimension, image_paths):
 
         # Save the PDF report
         c.save()
-        app.logger.info(f"PDF generated successfully: {pdf_path}", extra={'action': 'pdf_generated'})
+        if DEBUG is True:
+            app.logger.info(f"PDF generated successfully: {pdf_path}", extra={'action': 'pdf_generated'})
 
         # Convert the PDF file path to a downloadable URL
         pdf_url = url_for('uploaded_file', filename=pdf_filename)
@@ -847,27 +763,50 @@ def generate_report(fractal_dimension, image_paths):
 
 
 @app.route('/download_generated_report')
+@limiter.limit("10 per minute")
 def download_generated_report():
     filename = request.args.get('filename')
     if not filename:
         flash('Report not found.', 'danger')
-        app.logger.warning("No filename provided for report download", extra={'action': 'download_report_not_found'})
+        if DEBUG:
+            app.logger.warning("No filename provided for report download",
+                               extra={'action': 'download_report_not_found'})
         return safe_redirect('fractal')
 
     # Sanitize the filename
     filename = secure_filename(filename)
 
-    # Construct the file path
-    pdf_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    # Validate the filename pattern
+    if not is_valid_filename(filename):
+        flash('Invalid report filename.', 'danger')
+        if DEBUG:
+            app.logger.warning(f"Invalid filename pattern: {filename}",
+                               extra={'action': 'invalid_filename_pattern'})
+        return safe_redirect('fractal')
+
+    # Construct the absolute file path
+    upload_folder = os.path.abspath(app.config['UPLOAD_FOLDER'])
+    pdf_path = os.path.abspath(os.path.join(upload_folder, filename))
+
+    # Verify that the file is within the UPLOAD_FOLDER to prevent path traversal
+    if not pdf_path.startswith(upload_folder):
+        flash('Invalid file path.', 'danger')
+        if DEBUG:
+            app.logger.warning(f"Invalid file path attempt: {pdf_path}",
+                               extra={'action': 'invalid_file_path_attempt'})
+        return safe_redirect('fractal')
 
     # Verify that the file exists
     if not os.path.isfile(pdf_path):
         flash('Report not found.', 'danger')
-        app.logger.warning("Attempted to download a non-existent report", extra={'action': 'download_report_not_found'})
+        if DEBUG:
+            app.logger.warning("Attempted to download a non-existent report",
+                               extra={'action': 'download_report_not_found'})
         return safe_redirect('fractal')
 
-    app.logger.info(f"Report downloaded: {filename}", extra={'action': 'download_report'})
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename, as_attachment=True)
+    if DEBUG:
+        app.logger.info(f"Report downloaded: {filename}", extra={'action': 'download_report'})
+    return send_from_directory(upload_folder, filename, as_attachment=True)
 
 
 @app.route('/uploads/<filename>')
@@ -878,36 +817,6 @@ def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 
-def resize_image(image_path, max_size=(1024, 1024)):
-    from PIL.Image import UnidentifiedImageError
-    # Ensure the image path is within the UPLOAD_FOLDER
-    if not image_path.startswith(app.config['UPLOAD_FOLDER']):
-        app.logger.error(f"Unauthorized image path: {image_path}",
-                         extra={'action': 'resize_image_error', 'image_path': image_path})
-        return None
-    """Resize the image to a specified maximum size and return the path."""
-    try:
-        from PIL import Image
-        from PIL.Image import Resampling
-
-        if os.path.isfile(image_path):
-            with Image.open(image_path) as img:
-                img.thumbnail(max_size, Resampling.LANCZOS)
-                resized_filename = f"resized_{os.path.basename(image_path)}"
-                resized_path = os.path.join(app.config['UPLOAD_FOLDER'], resized_filename)
-                img.save(resized_path)
-                app.logger.info(f"Image resized and saved to {resized_path}",
-                                extra={'action': 'image_resized', 'resized_path': resized_path})
-                return resized_path
-        else:
-            app.logger.error(f"File not found for resizing: {image_path}",
-                             extra={'action': 'resize_image_error', 'image_path': image_path})
-            return None
-    except UnidentifiedImageError as e:
-        app.logger.error(f"Error resizing image {image_path}: {str(e)}", extra={'action': 'resize_image_error'})
-        return None
-
-
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 5000))  # Render provides the PORT variable; default to 5000 if not set
-    app.run(debug=False, host='0.0.0.0', port=port)
+    app.run(debug=DEBUG, host='0.0.0.0', port=port)

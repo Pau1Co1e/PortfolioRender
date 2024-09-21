@@ -19,8 +19,9 @@ gen
 
 *./instance
 static/docs/chatbot.log
-/instance/
+
+instance/
+/flask_session/
 /static/uploads/
 /static/docs/resume_builder.py
-
-.venv/
+/server.py

@@ -3,6 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <title>CSRF Error</title>
+    <meta http-equiv="Content-Security-Policy" content="
+        default-src 'self';
+        script-src 'self' 'nonce-{{ nonce }}' https://code.jquery.com https://cdn.jsdelivr.net;
+        style-src 'self' 'nonce-{{ nonce }}' https://cdn.jsdelivr.net;
+        img-src 'self' data:;
+        connect-src 'self' https://api.huggingface.co;
+        frame-src 'self' https://docs.google.com;
+        font-src 'self' https://cdn.jsdelivr.net;
+    ">
 </head>
 <body>
     <section>
@@ -20,7 +29,8 @@
                             <a class="nav-link {% if request.endpoint == 'about_me' %}active{% endif %}" href="{{ url_for('about_me') }}">About Me</a>
                         </li>
                         <li>
-                            <a class="nav-link {% if request.endpoint == 'experience' %}active{% endif %}" href="{{ url_for('experience') }}">Projects</a>                    </li>
+                            <a class="nav-link {% if request.endpoint == 'experience' %}active{% endif %}" href="{{ url_for('experience') }}">Projects</a>
+                        </li>
                         <li>
                             <a class="nav-link {% if request.endpoint == 'contact' %}active{% endif %}" href="{{ url_for('contact') }}">Contact Me</a>
                         </li>

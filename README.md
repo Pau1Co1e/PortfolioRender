@@ -31,15 +31,8 @@ Welcome to my personal portfolio website, designed to showcase my skills, projec
 
 ## Links and Contact Information
 - ### Website: [CodeBloodedFamily](https://CodeBloodedFamily.com).
-- ### GitHub: [versioning](https://github.com/Pau1Co1e).
 - ### LinkedIn: [paulc88](https://www.linkedin.com/in/paulc88/).
-
-- ### Email: [e-mail](engineering.paul@icloud.com).
-- ### Pauls Chatbot: [chatbot](https://CodeBloodedFamily.com/chatbot)
-
-- ### For questions or comments [contact](https://CodeBloodedFamily.com/contact) me or head over to my projects page and ask my chatbot [chatbot](https://CodeBloodedFamily.com/experience).
 --------
-
 ## Run the Website Locally
 
 1. Clone the repository to your local machine:
