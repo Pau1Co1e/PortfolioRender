@@ -28,6 +28,9 @@ from urllib.parse import unquote
 import uuid
 from werkzeug.utils import secure_filename
 import torch
+
+from flask_cors import CORS
+
 import matplotlib
 matplotlib.use('Agg')
 
@@ -36,8 +39,9 @@ DEBUG = False
 # Flask app configuration
 app = Flask(__name__)
 
-app.config['SESSION_TYPE'] = 'filesystem'
+CORS(app, origins=["http://127.0.0.1:5000"])
 
+app.config['SESSION_TYPE'] = 'filesystem'
 # Define upload and video folders with environment variables and defaults
 app.config['UPLOAD_FOLDER'] = os.getenv('UPLOAD_FOLDER', os.path.join(app.root_path, 'static/uploads'))
 app.config['VIDEO_FOLDER'] = os.getenv('VIDEO_FOLDER', os.path.join(app.root_path, 'static/videos'))
@@ -115,14 +119,6 @@ def before_request():
     g.nonce = secrets.token_hex(16)  # Generates a 32-character hexadecimal string
     app.logger.debug(f"Generated nonce: {g.nonce}", extra={'action': 'nonce_generated'})
 
-    # app.logger.info({
-    #     'action': 'request_received',
-    #     'method': request.method,
-    #     'url': request.url,
-    #     'remote_addr': request.remote_addr,
-    #     'user_agent': request.user_agent.string,
-    #     'query_string': request.query_string.decode('utf-8'),
-    # })
 
 # Inject nonce into templates
 @app.context_processor
@@ -175,6 +171,7 @@ def page_not_found(error):
 
 @app.errorhandler(429)
 def ratelimit_handler(e):
+    app.logger.error(f"Error 429: {e}", extra={'action': 'ratelimit_handler'})
     return jsonify(error="Rate limit exceeded. Please try again later."), 429
 
 
@@ -229,7 +226,7 @@ def chatbot():
 
 @app.route('/chatbot-answer', methods=['POST'])
 @csrf.exempt  # Exempt this route from CSRF protection
-@limiter.limit("5 per minute")
+@limiter.limit("10 per minute")
 def chatbot_answer():
     try:
         data = request.get_json()
@@ -258,7 +255,7 @@ def chatbot_answer():
 
         # Cache the response if it's valid
         if response and 'answer' in response and len(response['answer']) > 3:
-            cache.set(f"chatbot_answer_{question}", response, timeout=60)
+            cache.set(f"chatbot_answer_{question}", response, timeout=60*5)
 
         if DEBUG:
             app.logger.info("Chatbot successfully answered question", extra={'action': 'chatbot_answered'})
@@ -272,43 +269,40 @@ def chatbot_answer():
     finally:
         gc.collect()
 
-def call_faq_pipeline(question):
-    # Use the FastAPI app's public URL from Render
-    response = requests.post(
-        'https://chatbot-portfolio-zqwu.onrender.com/faq',
-        json={'question': question, 'context': context}
-    )
-    response.raise_for_status()
-    return response.json()
 
-# def call_faq_pipeline(question):
-#     """
-#     Call the FastAPI service to get the FAQ pipeline answer.
-#     """
-#     static_context = (
-#         "My name is Paul Coleman. I'm a graduate student working towards earning a master's degree in computer science "
-#         "at Utah Valley University. I am working towards becoming an AI/ML Engineer with an interest in applying those skills "
-#         "to Finance, Cybersecurity, or Healthcare sectors. "
-#         "I have 5 years of programming experience with Python and AI/ML frameworks TensorFlow and PyTorch. "
-#         "Most Recent Professional Work Experience or Job Title: Full Stack Web Developer."
-#     )
-#
-#     # Combine static context with the question
-#     context = f"{static_context} {question}"
-#
-#     try:
-#         # Make the HTTP POST request to FastAPI
-#         response = requests.post(
-#             'http://<your-fastapi-service-url>/faq',  # Replace with your FastAPI URL
-#             json={'question': question, 'context': context}
-#         )
-#         response.raise_for_status()  # Raise an error for bad responses (4xx/5xx)
-#
-#         # Return the result from FastAPI
-#         return response.json()
-#     except requests.exceptions.RequestException as e:
-#         app.logger.error(f"Error calling FastAPI service: {str(e)}", extra={'action': 'faq_pipeline_error'})
-#         return {"error": "An error occurred while calling the FAQ service."}
+def call_faq_pipeline(question):
+    static_context = (
+        "My name is Paul Coleman. I'm a graduate student working towards earning a master's degree in computer science "
+        "at Utah Valley University. I am working towards becoming an AI/ML Engineer with an interest in applying those skills "
+        "to Finance, Cybersecurity, or Healthcare sectors. "
+        "I have 5 years of programming experience with Python and AI/ML frameworks TensorFlow and PyTorch. "
+        "Most Recent Professional Work Experience or Job Title: Full Stack Web Developer."
+    )
+
+    # Combine static context with the question
+    context = f"{static_context} {question}"
+
+    try:
+        payload = {'question': question, 'context': context}
+        app.logger.info(f"Sending request to FastAPI: {payload}")
+
+        # Make the HTTP POST request to FastAPI
+        response = requests.post(
+            'http://localhost:8000/faq/',
+        #'https://chatbot-portfolio-zqwu.onrender.com/faq/',
+            json=payload,  # This JSON must match FAQRequest model
+            timeout=10
+        )
+
+        response.raise_for_status()  # Raise an error for bad responses (4xx/5xx)
+        app.logger.info(f"Response from FastAPI: {response.json()}")
+
+        return response.json()
+
+    except requests.exceptions.RequestException as e:
+        app.logger.error(f"Error calling FastAPI service: {str(e)}", extra={'action': 'faq_pipeline_error'})
+        return {"error": "An error occurred while calling the FAQ service."}
+
 
 @app.route('/videos/<filename>')
 def serve_video(filename):
@@ -618,7 +612,6 @@ def save_images(image, image_gray, image_binary, fractal_dimension, log_box_size
             intercept,
             image_paths['analysis']
         )
-        plt
 
         # Convert file paths to URLs
         image_urls = {
@@ -687,7 +680,8 @@ def generate_report(fractal_dimension, image_paths):
 
         # Fractal Dimension Text section
         c.setFont("Helvetica", 12)
-        c.drawString(inch, height - 1 * inch, f"Estimated Fractal Dimension: {fractal_dimension:.2f}")
+        fractal_dimension = float(fractal_dimension)
+        c.drawString(inch, height - 1 * inch, f"Estimated Fractal Dimension: {float(fractal_dimension):.2f}")
 
         # Image dimensions for the layout
         image_width, image_height = 3 * inch, 3 * inch  # Fixed size for images
