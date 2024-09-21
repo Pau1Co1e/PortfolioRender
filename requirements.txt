@@ -21,3 +21,4 @@ pandas==2.2.2
 psutil~=6.0.0
 scikit-image==0.24.0
 yfinance==0.2.41
+Flask-Session==0.8.0
