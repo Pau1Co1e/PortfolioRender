@@ -36,11 +36,12 @@ matplotlib.use('Agg')
 
 DEBUG = False
 
-
 # Flask app configuration
 app = Flask(__name__)
 
-CORS(app, origins=["portfoliorender-p89i:10000"])
+FASTAPI_URL = "https://app.codebloodedfamily.com/faq/"
+
+CORS(app, resources={r"/*": {"origins": ["https://codebloodedfamily.com"]}}, supports_credentials=True)
 
 app.config['SESSION_TYPE'] = 'filesystem'
 # Define upload and video folders with environment variables and defaults
@@ -262,6 +263,7 @@ def chatbot_answer():
 
 
 def call_faq_pipeline(question):
+    # Static context can be abstracted to its own function or module if it grows
     static_context = (
         "My name is Paul Coleman. I'm a graduate student working towards earning a master's degree in computer science "
         "at Utah Valley University. I am working towards becoming an AI/ML Engineer with an interest in applying those skills "
@@ -271,28 +273,42 @@ def call_faq_pipeline(question):
     )
 
     # Combine static context with the question
-    context = f"{static_context} {question}"
+    context = f"{static_context} {question.strip()}"
+
+    # Payload structure to send to FastAPI, ensuring the question is sanitized
+    payload = {
+        'question': question.strip(),  # Removing leading/trailing spaces
+        'context': context
+    }
 
     try:
-        payload = {'question': question, 'context': context}
-        app.logger.info(f"Sending request to FastAPI: {payload}")
+        app.logger.info(f"Sending request to FastAPI with payload: {payload}")
 
         # Make the HTTP POST request to FastAPI
         response = requests.post(
-            'api.codebloodedfamily.com/faq/',
-            json=payload,  # This JSON must match FAQRequest model
-            timeout=10
+            FASTAPI_URL,
+            json=payload,
+            timeout=10  # Set a timeout to avoid hanging requests
         )
 
-        response.raise_for_status()  # Raise an error for bad responses (4xx/5xx)
+        # Check if the response is successful
+        response.raise_for_status()
         app.logger.info(f"Response from FastAPI: {response.json()}")
 
+        # Parse the FastAPI response
         return response.json()
 
-    except requests.exceptions.RequestException as e:
-        app.logger.error(f"Error calling FastAPI service: {str(e)}", extra={'action': 'faq_pipeline_error'})
-        return {"error": "An error occurred while calling the FAQ service."}
+    except requests.exceptions.HTTPError as http_err:
+        app.logger.error(f"HTTP error occurred: {http_err}", extra={'action': 'faq_pipeline_http_error'})
+        return {"error": "An HTTP error occurred while calling the FAQ service."}
 
+    except requests.exceptions.Timeout:
+        app.logger.error("Request to FastAPI timed out", extra={'action': 'faq_pipeline_timeout'})
+        return {"error": "The request to the FAQ service timed out. Please try again later."}
+
+    except requests.exceptions.RequestException as req_err:
+        app.logger.error(f"Request exception occurred: {req_err}", extra={'action': 'faq_pipeline_error'})
+        return {"error": "An error occurred while calling the FAQ service."}
 
 @app.route('/videos/<filename>')
 def serve_video(filename):
