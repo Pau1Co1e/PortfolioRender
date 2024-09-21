@@ -1,5 +1,15 @@
-### Example user template template
-### Example user template
+# Virtual Enviornment
+.venv/
+/flask_session
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+
+# Logs
+*.log
+
+# Database files
+*.db
 
 # IntelliJ project files
 .idea
@@ -9,4 +19,11 @@ gen
 
 *./instance
 static/docs/chatbot.log
-/instance/
+
+instance/
+/flask_session/
+/static/uploads/
+/static/docs/resume_builder.py
+/server.py
+
+.idea/

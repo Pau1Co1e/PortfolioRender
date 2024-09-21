@@ -1,5 +1,4 @@
 document.addEventListener("DOMContentLoaded", function () {
-    // Function to show loading animation
     function showLoading() {
         const loadingElement = document.getElementById('loading');
         if (loadingElement) {
@@ -7,7 +6,6 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     }
 
-    // Function to hide loading animation
     function hideLoading() {
         const loadingElement = document.getElementById('loading');
         if (loadingElement) {
@@ -15,7 +13,6 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     }
 
-    // Function to update text color in footer links based on theme
     function updateFooterTextColor() {
         document.querySelectorAll('footer a').forEach(link => {
             const isDarkMode = document.body.classList.contains('dark-mode');
@@ -24,7 +21,6 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
-    // Function to apply dark mode to specified elements
     function applyDarkMode(isDarkMode) {
         const elementsToToggle = [
             document.body,
@@ -56,7 +52,6 @@ document.addEventListener("DOMContentLoaded", function () {
         updateFooterTextColor();
     }
 
-    // Function to handle theme toggle
     function handleThemeToggle() {
         showLoading();
         setTimeout(() => {
@@ -67,7 +62,6 @@ document.addEventListener("DOMContentLoaded", function () {
         }, 500);
     }
 
-    // Apply saved theme preference on page load
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme === 'dark') {
         applyDarkMode(true);

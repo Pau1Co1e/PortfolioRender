@@ -26,17 +26,15 @@ Welcome to my personal portfolio website, designed to showcase my skills, projec
   - Transformers (for AI and ML model integration)
   - ReportLab (for generating downloadable PDF reports)
 - **Deployment:**
-  - Netlify (for deployment and hosting dynamic content, including serverless functions)
+  - Render (for deployment and hosting dynamic content, including serverless functions)
   - GitHub Pages (for static content hosting)
 
-## Setup and Usage
-### View the Website Online
-#### Visit the live website: [https://colemantech.netlify.app](https://colemantech.netlify.app)
+## Links and Contact Information
+- ### Website: [CodeBloodedFamily](https://CodeBloodedFamily.com).
+- ### LinkedIn: [paulc88](https://www.linkedin.com/in/paulc88/).
+--------
+## Run the Website Locally
 
-### OR
-#### Visit GitHub Pages: [https://pau1co1e.github.io](https://pau1co1e.github.io)
-
-### Run the Website Locally
 1. Clone the repository to your local machine:
    ```bash
    git clone https://github.com/Pau1Co1e/Pau1Co1e.github.io.git
