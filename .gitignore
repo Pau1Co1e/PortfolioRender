@@ -27,3 +27,4 @@ instance/
 /server.py
 
 .idea/
+/.venv/

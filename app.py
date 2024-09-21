@@ -39,7 +39,7 @@ DEBUG = False
 # Flask app configuration
 app = Flask(__name__)
 
-CORS(app, origins=["http://127.0.0.1:5000"])
+CORS(app, origins=["portfoliorender-p89i:10000"])
 
 app.config['SESSION_TYPE'] = 'filesystem'
 # Define upload and video folders with environment variables and defaults
@@ -72,16 +72,6 @@ app.config.update(
     SESSION_COOKIE_SAMESITE='Lax',
 )
 
-# global faq_pipeline
-# # Preload the AI model
-# faq_pipeline = pipeline(
-#     "question-answering",
-#     model="distilbert-base-cased-distilled-squad",
-#     device=0 if torch.cuda.is_available() else -1
-# )
-
-# After loading the model
-# faq_pipeline.model.eval()
 
 def create_directories():
     """Create necessary directories if they don't exist."""
@@ -288,8 +278,7 @@ def call_faq_pipeline(question):
 
         # Make the HTTP POST request to FastAPI
         response = requests.post(
-            'http://localhost:8000/faq/',
-        #'https://chatbot-portfolio-zqwu.onrender.com/faq/',
+            'https://chatbot-portfolio-zqwu.onrender.com/faq/',
             json=payload,  # This JSON must match FAQRequest model
             timeout=10
         )
