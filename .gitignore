@@ -1,6 +1,6 @@
 # Virtual Enviornment
 .venv/
-
+/flask_session
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -25,3 +25,5 @@ instance/
 /static/uploads/
 /static/docs/resume_builder.py
 /server.py
+
+.idea/
