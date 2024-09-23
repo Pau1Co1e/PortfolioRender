@@ -79,9 +79,20 @@ app.config.update(
 )
 
 # Define upload and video folders with consistent defaults
-app.config['UPLOAD_FOLDER'] = os.getenv('UPLOAD_FOLDER', '/tmp/uploads')
-app.config['VIDEO_FOLDER'] = os.getenv('VIDEO_FOLDER', '/tmp/videos')
+# Override environment variables if they point to read-only directories
+upload_folder = os.getenv('UPLOAD_FOLDER', '/tmp/uploads')
+video_folder = os.getenv('VIDEO_FOLDER', '/tmp/videos')
 
+if upload_folder.startswith('/app'):
+    logger.warning("UPLOAD_FOLDER is set to a read-only directory '/app'. Overriding to '/tmp/uploads'.")
+    upload_folder = '/tmp/uploads'
+
+if video_folder.startswith('/app'):
+    logger.warning("VIDEO_FOLDER is set to a read-only directory '/app'. Overriding to '/tmp/videos'.")
+    video_folder = '/tmp/videos'
+
+app.config['UPLOAD_FOLDER'] = upload_folder
+app.config['VIDEO_FOLDER'] = video_folder
 
 # Create necessary directories
 def create_directories():
@@ -102,7 +113,6 @@ def create_directories():
                 "error": str(e)
             })
             raise
-
 
 create_directories()
 
@@ -175,7 +185,6 @@ ALLOWED_REDIRECTS = {
     'fractal', 'chatbot', 'upload', 'download_generated_report', 'uploaded_file'
 }
 
-
 # Flask routes
 @app.before_request
 def before_request():
@@ -184,13 +193,11 @@ def before_request():
     g.nonce = secrets.token_hex(16)  # Generates a 32-character hexadecimal string
     logger.debug(f"Generated nonce: {g.nonce}", extra={'action': 'nonce_generated'})
 
-
 # Inject nonce into templates
 @app.context_processor
 def inject_nonce():
     """Inject the nonce into the template context."""
     return dict(nonce=getattr(g, 'nonce', ''))
-
 
 @app.after_request
 def after_request(response):
@@ -216,7 +223,6 @@ def after_request(response):
 
     return log_response(response)
 
-
 @app.errorhandler(400)
 def handle_bad_request(error):
     if hasattr(error, 'description') and 'CSRF' in error.description:
@@ -225,31 +231,26 @@ def handle_bad_request(error):
     logger.error(f"Bad Request: {error}", extra={'action': 'bad_request'})
     return "Bad Request", 400
 
-
 @app.errorhandler(404)
 def page_not_found(error):
     logger.error(f"Page not found: {error}", extra={'action': 'page_not_found'})
     return render_template('404.html'), 404
-
 
 @app.errorhandler(429)
 def ratelimit_handler(e):
     logger.error(f"Error 429: {e}", extra={'action': 'ratelimit_handler'})
     return jsonify(error="Rate limit exceeded. Please try again later."), 429
 
-
 @app.errorhandler(500)
 def handle_server_error(error):
     logger.error(f"Server Error: {error}", extra={'action': 'server_error'})
     return "Internal Server Error", 500
-
 
 @app.route('/')
 def home():
     if DEBUG:
         logger.info("Rendered home page", extra={'action': 'render_page', 'page': 'index'})
     return render_template('index.html')
-
 
 @app.route('/test-faq', methods=['GET'])
 def test_faq():
@@ -267,13 +268,11 @@ def test_faq():
         logger.error(f"Error during test_faq: {e}", extra={'action': 'test_faq_error'})
         return jsonify({"error": "An error occurred during test_faq."}), 500
 
-
 @app.route('/about_me')
 def about_me():
     if DEBUG:
         logger.info("Rendered about_me page", extra={'action': 'render_page', 'page': 'about_me'})
     return render_template('about_me.html')
-
 
 @app.route('/contact', methods=['GET', 'POST'])
 def contact():
@@ -284,13 +283,11 @@ def contact():
         return redirect(url_for('contact'))
     return render_template('contact.html')
 
-
 @app.route('/download')
 def download():
     if DEBUG:
         logger.info("Rendered download page", extra={'action': 'render_page', 'page': 'download'})
     return render_template('download.html')
-
 
 @app.route('/experience', methods=['GET', 'POST'])
 def experience():
@@ -298,14 +295,12 @@ def experience():
         logger.info("Rendered experience page", extra={'action': 'render_page', 'page': 'experience'})
     return render_template('experience.html')
 
-
 @app.route('/chatbot')
 def chatbot():
     session['visit_time'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     if DEBUG:
         logger.info(f"Chatbot page accessed at {session['visit_time']}", extra={'action': 'chatbot_accessed'})
     return render_template('chatbot.html')
-
 
 @app.route('/chatbot-answer', methods=['POST'])
 @csrf.exempt  # Exempt this route from CSRF protection
@@ -348,7 +343,6 @@ def chatbot_answer():
     except Exception as e:
         logger.error(f"Error processing chatbot request: {str(e)}", extra={'action': 'chatbot_error'})
         return jsonify({"error": "An error occurred while processing your question."}), 500
-
 
 def call_faq_pipeline(question):
     # Static context can be abstracted to its own function or module if it grows
@@ -398,7 +392,6 @@ def call_faq_pipeline(question):
         logger.error(f"Request exception occurred: {req_err}", extra={'action': 'faq_pipeline_error'})
         return {"error": "An error occurred while calling the FAQ service."}
 
-
 @app.route('/videos/<filename>')
 def serve_video(filename):
     filename = secure_filename(filename)
@@ -419,7 +412,6 @@ def serve_video(filename):
         logger.error(f"Error serving video file: {e}",
                      extra={'action': 'serve_video_exception', 'file_name': filename})
         return "Internal Server Error", 500
-
 
 def partial_response(file_path, range_header):
     """
@@ -453,7 +445,6 @@ def partial_response(file_path, range_header):
     }
     return Response(data, status=206, headers=headers)
 
-
 @app.route('/fractal', methods=['GET', 'POST'])
 def fractal():
     if request.method == 'POST':
@@ -486,7 +477,6 @@ def fractal():
     # For GET requests, render the fractal.html template
     return render_template('fractal.html')
 
-
 # Utility functions
 def allowed_file(filename):
     allowed_extensions = {'png', 'jpg', 'jpeg', 'gif'}
@@ -494,13 +484,11 @@ def allowed_file(filename):
     return mime_type in ['image/png', 'image/jpeg', 'image/gif'] and \
         '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
 
-
 def is_valid_filename(filename):
     """Validate the filename against a specific pattern."""
     # Example pattern: UUID followed by an underscore and then the original filename
     pattern = r'^[a-f0-9\-]{36}_[\w\-]+\.(pdf)$'
     return re.match(pattern, filename) is not None
-
 
 def validate_and_save_file(requested):
     """Validate the uploaded file and save it to the configured upload folder."""
@@ -534,7 +522,6 @@ def validate_and_save_file(requested):
                     extra={'action': 'file_saved', 'uploaded_filename': file_name})
     return file_path
 
-
 def preprocess_question(question):
     """Preprocess the user question by stripping whitespaces and ensuring punctuation."""
     question = question.strip()
@@ -546,7 +533,6 @@ def preprocess_question(question):
         logger.info(f"Processed question: {question}", extra={'action': 'question_preprocessed'})
     return question
 
-
 def safe_redirect(endpoint):
     """Safely redirect to a predefined list of endpoints to avoid Open Redirect vulnerabilities."""
     if endpoint in ALLOWED_REDIRECTS:
@@ -554,7 +540,6 @@ def safe_redirect(endpoint):
     else:
         logger.warning(f"Invalid redirect attempt to: {endpoint}", extra={'action': 'invalid_redirect_attempt'})
         return redirect(url_for('home'))  # Fallback to home page
-
 
 def log_response(response):
     """Log outgoing responses with structured data."""
@@ -569,7 +554,6 @@ def log_response(response):
         'query_string': request.query_string.decode('utf-8'),
     }, extra={'action': 'response_logging'})
     return response
-
 
 def calculate_fractal_dimension(image_path):
     """Calculate the fractal dimension of an image and save relevant images."""
@@ -610,7 +594,6 @@ def calculate_fractal_dimension(image_path):
                      extra={'action': 'fractal_calculation_error'})
         raise
 
-
 def process_image(image):
     """Resize and convert image to grayscale and binary formats."""
     try:
@@ -642,7 +625,6 @@ def process_image(image):
     except Exception as e:
         logger.error(f"Error processing image: {str(e)}", extra={'action': 'image_processing_error'})
         raise
-
 
 def perform_box_counting(image_binary):
     """Perform box counting and linear regression to estimate the fractal dimension."""
@@ -680,7 +662,6 @@ def perform_box_counting(image_binary):
     except Exception as e:
         logger.error(f"Error during box counting: {str(e)}", extra={'action': 'box_counting_error'})
         raise
-
 
 def save_images(image, image_gray, image_binary, fractal_dimension, log_box_sizes, log_box_counts, intercept):
     """Save the images with unique filenames and return their URLs and file paths."""
@@ -725,7 +706,6 @@ def save_images(image, image_gray, image_binary, fractal_dimension, log_box_size
         logger.error(f"Error saving images: {str(e)}", extra={'action': 'save_images_error'})
         raise
 
-
 def save_fractal_analysis_graph(log_box_sizes, log_box_counts, fractal_dimension, intercept, plot_path):
     """Generate and save the fractal dimension analysis graph."""
     try:
@@ -757,7 +737,6 @@ def save_fractal_analysis_graph(log_box_sizes, log_box_counts, fractal_dimension
         logger.error(f"Error saving fractal dimension analysis graph: {str(e)}",
                      extra={'action': 'save_plot_error'})
         raise
-
 
 def generate_report(fractal_dimension, image_paths):
     try:
@@ -832,7 +811,6 @@ def generate_report(fractal_dimension, image_paths):
         logger.error(f"Error generating PDF: {str(e)}", extra={'action': 'generate_pdf_error'})
         raise
 
-
 @app.route('/download_generated_report')
 @limiter.limit("10 per minute")
 def download_generated_report():
@@ -879,13 +857,11 @@ def download_generated_report():
         logger.info(f"Report downloaded: {filename}", extra={'action': 'download_report'})
     return send_from_directory(upload_folder, filename, as_attachment=True)
 
-
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
     """Serve uploaded files."""
     filename = secure_filename(filename)
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
-
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
@@ -916,7 +892,6 @@ def upload_file():
                 "error": str(e)
             })
             return jsonify({"error": "Failed to save file"}), 500
-
 
 # Uncomment the following lines to run the Flask app directly
 # if __name__ == '__main__':
