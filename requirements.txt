@@ -28,3 +28,4 @@ Flask-Cors==5.0.0
 Flask==3.0.3
 flask-caching==2.3.0
 uvicorn==0.30.6
+redis==4.5.5
