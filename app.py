@@ -28,19 +28,23 @@ from urllib.parse import unquote
 import uuid
 from werkzeug.utils import secure_filename
 import torch
-
 from flask_cors import CORS
 
 import matplotlib
+
 matplotlib.use('Agg')
+
+PORT = os.getenv("PORT", 8000)
 
 DEBUG = False
 
 # Flask app configuration
 app = Flask(__name__)
 
+# Corrected FASTAPI_URL to include '/faq/' endpoint
 FASTAPI_URL = "https://api.codebloodedfamily.com/faq/"
 
+# Corrected CORS origins to include protocol
 CORS(app, resources={r"/*": {"origins": ["https://codebloodedfamily.com"]}}, supports_credentials=True)
 
 app.config['SESSION_TYPE'] = 'filesystem'
@@ -74,7 +78,6 @@ app.config.update(
     SESSION_COOKIE_SAMESITE='Lax',
 )
 
-
 def create_directories():
     """Create necessary directories if they don't exist."""
     for folder_key in ['UPLOAD_FOLDER', 'VIDEO_FOLDER']:
@@ -106,11 +109,9 @@ if not app.logger.handlers:
 @app.before_request
 def before_request():
     """Actions to perform before each request."""
-
     """Generate a unique nonce for each request and store it in the global `g` object."""
     g.nonce = secrets.token_hex(16)  # Generates a 32-character hexadecimal string
     app.logger.debug(f"Generated nonce: {g.nonce}", extra={'action': 'nonce_generated'})
-
 
 # Inject nonce into templates
 @app.context_processor
@@ -147,7 +148,6 @@ def after_request(response):
 
     return log_response(response)
 
-
 @app.errorhandler(400)
 def handle_bad_request(error):
     if hasattr(error, 'description') and 'CSRF' in error.description:
@@ -166,7 +166,6 @@ def ratelimit_handler(e):
     app.logger.error(f"Error 429: {e}", extra={'action': 'ratelimit_handler'})
     return jsonify(error="Rate limit exceeded. Please try again later."), 429
 
-
 @app.errorhandler(500)
 def handle_server_error(error):
     app.logger.error(f"Server Error: {error}", extra={'action': 'server_error'})
@@ -178,12 +177,27 @@ def index():
         app.logger.info("Rendered index page", extra={'action': 'render_page', 'page': 'index'})
     return render_template('index.html')
 
+@app.route('/test-faq', methods=['GET'])
+def test_faq():
+    try:
+        response = requests.post(FASTAPI_URL, json={
+            "question": "What is AI?",
+            "context": "AI is the simulation of human intelligence."
+        }, timeout=10)
+        response.raise_for_status()
+        return jsonify(response.json())
+    except requests.exceptions.HTTPError as http_err:
+        app.logger.error(f"HTTP error during test_faq: {http_err}", extra={'action': 'test_faq_http_error'})
+        return jsonify({"error": "HTTP error occurred during test_faq."}), 500
+    except Exception as e:
+        app.logger.error(f"Error during test_faq: {e}", extra={'action': 'test_faq_error'})
+        return jsonify({"error": "An error occurred during test_faq."}), 500
+
 @app.route('/about_me')
 def about_me():
     if DEBUG is True:
         app.logger.info("Rendered about_me page", extra={'action': 'render_page', 'page': 'about_me'})
     return render_template('about_me.html')
-
 
 @app.route('/contact', methods=['GET', 'POST'])
 def contact():
@@ -194,20 +208,17 @@ def contact():
         return redirect(url_for('contact'))
     return render_template('contact.html')
 
-
 @app.route('/download')
 def download():
     if DEBUG is True:
         app.logger.info("Rendered download page", extra={'action': 'render_page', 'page': 'download'})
     return render_template('download.html')
 
-
 @app.route('/experience', methods=['GET', 'POST'])
 def experience():
     if DEBUG is True:
         app.logger.info("Rendered experience page", extra={'action': 'render_page', 'page': 'experience'})
     return render_template('experience.html')
-
 
 @app.route('/chatbot')
 def chatbot():
@@ -247,7 +258,7 @@ def chatbot_answer():
 
         # Cache the response if it's valid
         if response and 'answer' in response and len(response['answer']) > 3:
-            cache.set(f"chatbot_answer_{question}", response, timeout=60*5)
+            cache.set(f"chatbot_answer_{question}", response, timeout=60 * 5)
 
         if DEBUG:
             app.logger.info("Chatbot successfully answered question", extra={'action': 'chatbot_answered'})
@@ -260,7 +271,6 @@ def chatbot_answer():
 
     finally:
         gc.collect()
-
 
 def call_faq_pipeline(question):
     # Static context can be abstracted to its own function or module if it grows
@@ -277,12 +287,12 @@ def call_faq_pipeline(question):
 
     # Payload structure to send to FastAPI, ensuring the question is sanitized
     payload = {
-        'question': question.strip(),  # Removing leading/trailing spaces
-        'context': context
+        'question': question.strip(),  # Ensure this field is properly formatted
+        'context': context  # Ensure context is passed correctly
     }
 
     try:
-        app.logger.info(f"Sending request to FastAPI with payload: {payload}")
+        app.logger.info(f"Sending request to FastAPI with payload: {payload}", extra={'action': 'faq_pipeline_request'})
 
         # Make the HTTP POST request to FastAPI
         response = requests.post(
@@ -293,7 +303,7 @@ def call_faq_pipeline(question):
 
         # Check if the response is successful
         response.raise_for_status()
-        app.logger.info(f"Response from FastAPI: {response.json()}")
+        app.logger.info(f"Response from FastAPI: {response.json()}", extra={'action': 'faq_pipeline_response'})
 
         # Parse the FastAPI response
         return response.json()
@@ -364,7 +374,6 @@ def partial_response(file_path, range_header):
     }
     return Response(data, status=206, headers=headers)
 
-
 @app.route('/fractal', methods=['GET', 'POST'])
 def fractal():
     if request.method == 'POST':
@@ -378,8 +387,6 @@ def fractal():
             # Generate PDF report
             pdf_url = generate_report(fractal_dimension, image_file_paths)
 
-            # # Extract the filename from pdf_url
-            # pdf_filename = os.path.basename(unquote(pdf_url))
             app.logger.info(f"Fractal dimension calculated: {fractal_dimension}",
                             extra={'action': 'fractal_calculated'})
 
@@ -399,7 +406,6 @@ def fractal():
     # For GET requests, render the fractal.html template
     return render_template('fractal.html')
 
-
 # Utility functions
 def allowed_file(filename):
     allowed_extensions = {'png', 'jpg', 'jpeg', 'gif'}
@@ -407,13 +413,11 @@ def allowed_file(filename):
     return mime_type in ['image/png', 'image/jpeg', 'image/gif'] and \
         '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
 
-
 def is_valid_filename(filename):
     """Validate the filename against a specific pattern."""
     # Example pattern: UUID followed by an underscore and then the original filename
     pattern = r'^[a-f0-9\-]{36}_[\w\-]+\.(pdf)$'
     return re.match(pattern, filename) is not None
-
 
 def validate_and_save_file(requested):
     """Validate the uploaded file and save it to the configured upload folder."""
@@ -436,7 +440,6 @@ def validate_and_save_file(requested):
     file_path = os.path.join(app.config['UPLOAD_FOLDER'], file_name)
 
     upload_folder = os.path.abspath(app.config['UPLOAD_FOLDER'])
-    # file_path = os.path.abspath(file_path)
     if not file_path.startswith(upload_folder):
         raise ValueError('Invalid file path')
 
@@ -446,7 +449,6 @@ def validate_and_save_file(requested):
         app.logger.info(f"File saved successfully at {file_path}",
                         extra={'action': 'file_saved', 'uploaded_filename': file_name})
     return file_path
-
 
 def preprocess_question(question):
     """Preprocess the user question by stripping whitespaces and ensuring punctuation."""
@@ -458,7 +460,6 @@ def preprocess_question(question):
     if DEBUG is True:
         app.logger.info(f"Processed question: {question}", extra={'action': 'question_preprocessed'})
     return question
-
 
 def safe_redirect(endpoint):
     """Safely redirect to a predefined list of endpoints to avoid Open Redirect vulnerabilities."""
@@ -479,7 +480,7 @@ def log_response(response):
         'remote_addr': request.remote_addr,
         'user_agent': request.user_agent.string,
         'query_string': request.query_string.decode('utf-8'),
-    })
+    }, extra={'action': 'response_logging'})
     return response
 
 def calculate_fractal_dimension(image_path):
@@ -593,7 +594,6 @@ def perform_box_counting(image_binary):
 def save_images(image, image_gray, image_binary, fractal_dimension, log_box_sizes, log_box_counts, intercept):
     """Save the images with unique filenames and return their URLs and file paths."""
     try:
-
         static_folder = app.config['UPLOAD_FOLDER']
         os.makedirs(static_folder, exist_ok=True)
 
@@ -739,7 +739,6 @@ def generate_report(fractal_dimension, image_paths):
         app.logger.error(f"Error generating PDF: {str(e)}", extra={'action': 'generate_pdf_error'})
         raise
 
-
 @app.route('/download_generated_report')
 @limiter.limit("10 per minute")
 def download_generated_report():
@@ -786,14 +785,12 @@ def download_generated_report():
         app.logger.info(f"Report downloaded: {filename}", extra={'action': 'download_report'})
     return send_from_directory(upload_folder, filename, as_attachment=True)
 
-
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
     filename = secure_filename(filename)
     app.logger.info(f"Serving uploaded file: {filename}",
                     extra={'action': 'serve_uploaded_file', 'file_name': filename})
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
-
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 5000))  # Render provides the PORT variable; default to 5000 if not set
