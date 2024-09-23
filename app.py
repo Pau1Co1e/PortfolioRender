@@ -30,6 +30,14 @@ from flask_cors import CORS
 # Initialize Flask app
 app = Flask(__name__)
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+
+logger = logging.getLogger("flask_app")
+
 # Configuration
 PORT = int(os.getenv("PORT", 8000))
 DEBUG = False
@@ -63,12 +71,14 @@ app.config['VIDEO_FOLDER'] = os.getenv('VIDEO_FOLDER', os.path.join(app.root_pat
 
 # Create necessary directories
 def create_directories():
-    """Create necessary directories if they don't exist."""
-    for folder_key in ['UPLOAD_FOLDER', 'VIDEO_FOLDER']:
-        folder_path = app.config.get(folder_key)
-        if folder_path and not os.path.exists(folder_path):
-            os.makedirs(folder_path, exist_ok=True)
-            app.logger.info(f"Created directory: {folder_path}", extra={'action': 'create_directory'})
+    # Use environment variable or default to /tmp/uploads
+    folder_path = os.getenv("UPLOAD_FOLDER", "/tmp/uploads")
+    try:
+        os.makedirs(folder_path, exist_ok=True)
+        logger.info(f"Directory created or already exists: {folder_path}")
+    except OSError as e:
+        logger.error(f"Failed to create directory {folder_path}: {e}")
+        raise
 
 create_directories()
 
@@ -139,6 +149,7 @@ def inject_nonce():
     """Inject the nonce into the template context."""
     return dict(nonce=getattr(g, 'nonce', ''))
 
+
 @app.after_request
 def after_request(response):
     """Set security headers after each request."""
@@ -187,9 +198,9 @@ def handle_server_error(error):
     return "Internal Server Error", 500
 
 @app.route('/')
-def index():
+def home():
     if DEBUG:
-        app.logger.info("Rendered index page", extra={'action': 'render_page', 'page': 'index'})
+        app.logger.info("Rendered home page", extra={'action': 'render_page', 'page': 'index'})
     return render_template('index.html')
 
 @app.route('/test-faq', methods=['GET'])
