@@ -149,6 +149,7 @@ def inject_nonce():
     """Inject the nonce into the template context."""
     return dict(nonce=getattr(g, 'nonce', ''))
 
+
 @app.after_request
 def after_request(response):
     """Set security headers after each request."""
