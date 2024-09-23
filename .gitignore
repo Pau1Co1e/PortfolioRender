@@ -26,3 +26,4 @@ instance/
 /server.py
 .idea/
 /.venv/
+!/static/tmp/
