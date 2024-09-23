@@ -1,4 +1,3 @@
-import asyncio
 import datetime
 from flask import (
     Flask, render_template, request, jsonify, flash, redirect, url_for,
@@ -10,82 +9,46 @@ from flask_limiter.util import get_remote_address
 from flask_sqlalchemy import SQLAlchemy
 from flask_session import Session
 from flask_wtf.csrf import CSRFProtect
-import gc
 import logging
 from logging.handlers import RotatingFileHandler
 from matplotlib import pyplot as plt
-from memory_profiler import profile
 import mimetypes
 import numpy as np
 import os
 from pythonjsonlogger import jsonlogger  # JSON logging
 import re
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 import secrets
 from scipy.stats import linregress
-from transformers import pipeline
 from urllib.parse import unquote
 import uuid
 from werkzeug.utils import secure_filename
-import torch
 from flask_cors import CORS
 
-import matplotlib
-
-matplotlib.use('Agg')
-
-PORT = os.getenv("PORT", 8000)
-
-DEBUG = False
-
-# Flask app configuration
+# Initialize Flask app
 app = Flask(__name__)
 
-# Configure Flask-Caching to use Redis
-cache = Cache(app, config={
-    'CACHE_TYPE': 'redis',
-    'CACHE_REDIS_URL': os.getenv('REDIS_URL')  # Ensure this env variable is set
-})
+# Configuration
+PORT = int(os.getenv("PORT", 8000))
+DEBUG = False
 
-
-# Initialize Flask-Limiter with Redis storage
-limiter = Limiter(
-    key_func=get_remote_address,
-    app=app,
-    storage_uri=os.getenv('REDIS_URL'),  # Ensure this env variable is set
-    default_limits=["200 per day", "50 per hour"]
-)
-
-
-# Corrected FASTAPI_URL to include '/faq/' endpoint
-FASTAPI_URL = "https://api.codebloodedfamily.com/faq/"
-
-# Corrected CORS origins to include protocol
-CORS(app, resources={r"/*": {"origins": ["https://codebloodedfamily.com"]}}, supports_credentials=True)
-
-app.config['SESSION_TYPE'] = 'filesystem'
-# Define upload and video folders with environment variables and defaults
-app.config['UPLOAD_FOLDER'] = os.getenv('UPLOAD_FOLDER', os.path.join(app.root_path, 'static/uploads'))
-app.config['VIDEO_FOLDER'] = os.getenv('VIDEO_FOLDER', os.path.join(app.root_path, 'static/videos'))
-
-# Constants
-ALLOWED_REDIRECTS = {
-    'index', 'about_me', 'experience', 'contact', 'download', 'csrf_error',
-    'fractal_result', 'fractal', 'chatbot', 'upload', 'financial', 'download_generated_report'
-}
-
+# Secret Key
 SECRET_KEY = os.getenv('SECRET_KEY')
 if not SECRET_KEY:
     raise ValueError("No SECRET_KEY set for Flask application")
 app.secret_key = SECRET_KEY
 
+# Environment-based Configuration
 if app.config.get("ENV", "development") == "production":
     app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv('DATABASE_URL')
 else:
     app.config["SQLALCHEMY_DATABASE_URI"] = 'sqlite:///site.db'
 
+# Session Configuration
+app.config['SESSION_TYPE'] = 'filesystem'
 app.config['SESSION_COOKIE_SECURE'] = app.config.get('ENV') == 'production'
-
 app.config.update(
     MAX_CONTENT_LENGTH=16 * 1024 * 1024,  # Limit file size to 16MB
     ALLOWED_EXTENSIONS={'png', 'jpg', 'jpeg', 'gif'},
@@ -94,6 +57,11 @@ app.config.update(
     SESSION_COOKIE_SAMESITE='Lax',
 )
 
+# Define upload and video folders
+app.config['UPLOAD_FOLDER'] = os.getenv('UPLOAD_FOLDER', os.path.join(app.root_path, 'static/uploads'))
+app.config['VIDEO_FOLDER'] = os.getenv('VIDEO_FOLDER', os.path.join(app.root_path, 'static/videos'))
+
+# Create necessary directories
 def create_directories():
     """Create necessary directories if they don't exist."""
     for folder_key in ['UPLOAD_FOLDER', 'VIDEO_FOLDER']:
@@ -106,12 +74,42 @@ create_directories()
 
 # Initialize Extensions
 csrf = CSRFProtect(app)
-
 db = SQLAlchemy(app)
-cache = Cache(app, config={'CACHE_TYPE': 'simple'})  # Use Redis in production
-# # Initialize Limiter
-# limiter = Limiter(get_remote_address, app=app, default_limits=["200 per day", "50 per hour"])
-Session(app)
+
+# Initialize Flask-Caching with Redis for Production and Simple Cache for Development
+if app.config.get("ENV", "development") == "production":
+    cache_config = {
+        'CACHE_TYPE': 'redis',
+        'CACHE_REDIS_URL': os.getenv('REDIS_URL')  # Ensure this env variable is set
+    }
+else:
+    cache_config = {
+        'CACHE_TYPE': 'simple'
+    }
+cache = Cache(app, config=cache_config)
+
+# Initialize Flask-Limiter with Redis storage
+limiter = Limiter(
+    key_func=get_remote_address,
+    app=app,
+    storage_uri=os.getenv('REDIS_URL'),  # Ensure this env variable is set
+    default_limits=["200 per day", "50 per hour"]
+)
+
+# Initialize a global session with retries and connection pooling
+global_session = requests.Session()
+retries = Retry(
+    total=5,
+    backoff_factor=0.3,
+    status_forcelist=[500, 502, 503, 504],
+    allowed_methods=["POST"]
+)
+adapter = HTTPAdapter(max_retries=retries, pool_connections=100, pool_maxsize=100)
+global_session.mount("https://", adapter)
+global_session.mount("http://", adapter)
+
+# Configure CORS using flask_cors.CORS exclusively
+CORS(app, resources={r"/*": {"origins": ["https://codebloodedfamily.com"]}}, supports_credentials=True)
 
 # Logging configuration
 if not app.logger.handlers:
@@ -121,11 +119,17 @@ if not app.logger.handlers:
     app.logger.addHandler(logHandler)
     app.logger.setLevel(logging.INFO)
 
+# Constants
+ALLOWED_REDIRECTS = {
+    'index', 'about_me', 'experience', 'contact', 'download', 'csrf_error',
+    'fractal_result', 'fractal', 'chatbot', 'upload', 'financial', 'download_generated_report'
+}
+
 # Flask routes
 @app.before_request
 def before_request():
     """Actions to perform before each request."""
-    """Generate a unique nonce for each request and store it in the global `g` object."""
+    # Generate a unique nonce for each request and store it in the global `g` object.
     g.nonce = secrets.token_hex(16)  # Generates a 32-character hexadecimal string
     app.logger.debug(f"Generated nonce: {g.nonce}", extra={'action': 'nonce_generated'})
 
@@ -138,11 +142,6 @@ def inject_nonce():
 @app.after_request
 def after_request(response):
     """Set security headers after each request."""
-    # Add CORS headers
-    response.headers['Access-Control-Allow-Origin'] = 'https://codebloodedfamily.com'
-    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
-
     # Add Content Security Policy header with nonce
     nonce = getattr(g, 'nonce', '')
     response.headers['Content-Security-Policy'] = (
@@ -189,14 +188,14 @@ def handle_server_error(error):
 
 @app.route('/')
 def index():
-    if DEBUG is True:
+    if DEBUG:
         app.logger.info("Rendered index page", extra={'action': 'render_page', 'page': 'index'})
     return render_template('index.html')
 
 @app.route('/test-faq', methods=['GET'])
 def test_faq():
     try:
-        response = requests.post(FASTAPI_URL, json={
+        response = global_session.post(FASTAPI_URL, json={
             "question": "What is AI?",
             "context": "AI is the simulation of human intelligence."
         }, timeout=10)
@@ -211,7 +210,7 @@ def test_faq():
 
 @app.route('/about_me')
 def about_me():
-    if DEBUG is True:
+    if DEBUG:
         app.logger.info("Rendered about_me page", extra={'action': 'render_page', 'page': 'about_me'})
     return render_template('about_me.html')
 
@@ -219,27 +218,27 @@ def about_me():
 def contact():
     if request.method == 'POST':
         flash('Your message has been sent successfully!', 'success')
-        if DEBUG is True:
+        if DEBUG:
             app.logger.info('Contact form submitted', extra={'action': 'contact_form_submitted'})
         return redirect(url_for('contact'))
     return render_template('contact.html')
 
 @app.route('/download')
 def download():
-    if DEBUG is True:
+    if DEBUG:
         app.logger.info("Rendered download page", extra={'action': 'render_page', 'page': 'download'})
     return render_template('download.html')
 
 @app.route('/experience', methods=['GET', 'POST'])
 def experience():
-    if DEBUG is True:
+    if DEBUG:
         app.logger.info("Rendered experience page", extra={'action': 'render_page', 'page': 'experience'})
     return render_template('experience.html')
 
 @app.route('/chatbot')
 def chatbot():
     session['visit_time'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    if DEBUG is True:
+    if DEBUG:
         app.logger.info(f"Chatbot page accessed at {session['visit_time']}", extra={'action': 'chatbot_accessed'})
     return render_template('chatbot.html')
 
@@ -285,9 +284,6 @@ def chatbot_answer():
         app.logger.error(f"Error processing chatbot request: {str(e)}", extra={'action': 'chatbot_error'})
         return jsonify({"error": "An error occurred while processing your question."}), 500
 
-    finally:
-        gc.collect()
-
 def call_faq_pipeline(question):
     # Static context can be abstracted to its own function or module if it grows
     static_context = (
@@ -310,8 +306,8 @@ def call_faq_pipeline(question):
     try:
         app.logger.info(f"Sending request to FastAPI with payload: {payload}", extra={'action': 'faq_pipeline_request'})
 
-        # Make the HTTP POST request to FastAPI
-        response = requests.post(
+        # Make the HTTP POST request to FastAPI using the global_session
+        response = global_session.post(
             FASTAPI_URL,
             json=payload,
             timeout=10  # Set a timeout to avoid hanging requests
@@ -349,7 +345,7 @@ def serve_video(filename):
 
     try:
         response = partial_response(video_path, range_header)
-        if DEBUG is True:
+        if DEBUG:
             app.logger.info(f"Serving video file: {filename}", extra={'action': 'serve_video', 'file_name': filename})
         return response
     except Exception as e:
@@ -357,7 +353,6 @@ def serve_video(filename):
                          extra={'action': 'serve_video_exception', 'file_name': filename})
         return "Internal Server Error", 500
 
-@profile
 def partial_response(file_path, range_header):
     """
     Serve partial content for large video files to support byte-range requests.
@@ -473,7 +468,7 @@ def preprocess_question(question):
         raise ValueError('Question is too long. Please limit your question to 200 characters.')
     if not question.endswith('?'):
         question += '?'
-    if DEBUG is True:
+    if DEBUG:
         app.logger.info(f"Processed question: {question}", extra={'action': 'question_preprocessed'})
     return question
 
@@ -541,7 +536,7 @@ def calculate_fractal_dimension(image_path):
 def process_image(image):
     """Resize and convert image to grayscale and binary formats."""
     try:
-        if DEBUG is True:
+        if DEBUG:
             app.logger.info("Converting image to grayscale", extra={'action': 'image_processing'})
 
         # Resize to a smaller size, e.g., 512x512
@@ -555,12 +550,12 @@ def process_image(image):
 
         # Convert image to NumPy array and normalize
         image_gray = np.array(image_gray_image, dtype=np.float32) / 255.0  # Normalize to [0, 1]
-        if DEBUG is True:
+        if DEBUG:
             app.logger.info(f"image_gray type: {type(image_gray)}, shape: {image_gray.shape}")
 
         # Create binary image
         image_binary = image_gray < 0.5
-        if DEBUG is True:
+        if DEBUG:
             app.logger.info(f"image_binary type: {type(image_binary)}, shape: {image_binary.shape}")
 
         # Return resized image, image_gray, image_binary
@@ -573,7 +568,7 @@ def process_image(image):
 def perform_box_counting(image_binary):
     """Perform box counting and linear regression to estimate the fractal dimension."""
     try:
-        if DEBUG is True:
+        if DEBUG:
             app.logger.info(f"image_binary type: {type(image_binary)}")
             app.logger.info(f"image_binary shape: {image_binary.shape}")
 
@@ -599,7 +594,7 @@ def perform_box_counting(image_binary):
         # Perform linear regression on un-centered data
         slope, intercept, r_value, p_value, std_err = linregress(log_box_sizes, log_box_counts)
         fractal_dimension = -slope  # Fractal dimension is the negative slope
-        if DEBUG is True:
+        if DEBUG:
             app.logger.info(f"Fractal dimension calculated: {fractal_dimension}, R-squared: {r_value ** 2}",
                             extra={'action': 'box_counting_done'})
         return fractal_dimension, log_box_sizes, log_box_counts, intercept
@@ -642,7 +637,7 @@ def save_images(image, image_gray, image_binary, fractal_dimension, log_box_size
         }
 
         # Return both URLs and file paths
-        if DEBUG is True:
+        if DEBUG:
             app.logger.info(f"Images saved successfully: {image_paths}", extra={'action': 'images_saved'})
         return image_urls, image_paths
 
@@ -674,7 +669,7 @@ def save_fractal_analysis_graph(log_box_sizes, log_box_counts, fractal_dimension
         plt.clf()
         plt.close()
 
-        if DEBUG is True:
+        if DEBUG:
             app.logger.info(f"Fractal dimension analysis graph saved to {plot_path}", extra={'action': 'plot_saved'})
 
     except Exception as e:
@@ -743,7 +738,7 @@ def generate_report(fractal_dimension, image_paths):
 
         # Save the PDF report
         c.save()
-        if DEBUG is True:
+        if DEBUG:
             app.logger.info(f"PDF generated successfully: {pdf_path}", extra={'action': 'pdf_generated'})
 
         # Convert the PDF file path to a downloadable URL
@@ -808,6 +803,8 @@ def uploaded_file(filename):
                     extra={'action': 'serve_uploaded_file', 'file_name': filename})
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
+
+# Uncomment the following lines to run the Flask app directly
 # if __name__ == '__main__':
 #     port = int(os.getenv('PORT', 5000))  # Render provides the PORT variable; default to 5000 if not set
 #     app.run(debug=DEBUG, host='0.0.0.0', port=port)
