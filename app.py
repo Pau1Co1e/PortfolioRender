@@ -792,6 +792,6 @@ def uploaded_file(filename):
                     extra={'action': 'serve_uploaded_file', 'file_name': filename})
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
-if __name__ == '__main__':
-    port = int(os.getenv('PORT', 5000))  # Render provides the PORT variable; default to 5000 if not set
-    app.run(debug=DEBUG, host='0.0.0.0', port=port)
+# if __name__ == '__main__':
+#     port = int(os.getenv('PORT', 5000))  # Render provides the PORT variable; default to 5000 if not set
+#     app.run(debug=DEBUG, host='0.0.0.0', port=port)
