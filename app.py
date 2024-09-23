@@ -41,6 +41,22 @@ DEBUG = False
 # Flask app configuration
 app = Flask(__name__)
 
+# Configure Flask-Caching to use Redis
+cache = Cache(app, config={
+    'CACHE_TYPE': 'redis',
+    'CACHE_REDIS_URL': os.getenv('REDIS_URL')  # Ensure this env variable is set
+})
+
+
+# Initialize Flask-Limiter with Redis storage
+limiter = Limiter(
+    key_func=get_remote_address,
+    app=app,
+    storage_uri=os.getenv('REDIS_URL'),  # Ensure this env variable is set
+    default_limits=["200 per day", "50 per hour"]
+)
+
+
 # Corrected FASTAPI_URL to include '/faq/' endpoint
 FASTAPI_URL = "https://api.codebloodedfamily.com/faq/"
 
@@ -93,8 +109,8 @@ csrf = CSRFProtect(app)
 
 db = SQLAlchemy(app)
 cache = Cache(app, config={'CACHE_TYPE': 'simple'})  # Use Redis in production
-# Initialize Limiter
-limiter = Limiter(get_remote_address, app=app, default_limits=["200 per day", "50 per hour"])
+# # Initialize Limiter
+# limiter = Limiter(get_remote_address, app=app, default_limits=["200 per day", "50 per hour"])
 Session(app)
 
 # Logging configuration
