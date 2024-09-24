@@ -163,7 +163,7 @@ if env == "production":
         redis_client = None
 if env == 'development':
 
-    FASTAPI_URL = "http://127.0.0.1:8000/faq/"
+    FASTAPI_URL = "https://api.codebloodedfamily.com/faq/"
 else:
     FASTAPI_URL = os.getenv('FASTAPI_URL')  # Optional in development
     redis_client = None  # No Redis in development
