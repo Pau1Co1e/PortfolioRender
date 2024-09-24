@@ -368,27 +368,15 @@ def chatbot_answer():
 def call_faq_pipeline(question):
     # Static context can be abstracted to its own function or module if it grows
     static_context = (
-        "My name is Paul Coleman. I'm currently enrolled as a graduate student in the computer science masters "
-        "program at Utah Valley University."
-        "I am working towards becoming an AI/ML Engineer with an interest in applying those skills to Finance, "
-        "Cybersecurity, or Healthcare sectors. "
-        "I have 5 years of programming experience with Python and AI/ML frameworks TensorFlow and PyTorch."
-        "Most Recent Professional Work Experience or Job Title: Full Stack Web Developer."
-        "Tools and programming languages that I used when I was working as a full stack web developer: C#, "
-        "ASP.NET Core."
-        "Earned a Bachelors degree in Computer Science on August 2022 from Utah Valley University."
-        "I will be graduating with a masters degree in Computer Science from Utah Valley University in the Fall "
-        "of 2025."
-        "AI related skills and expertise that I have are mathematics and statistics, discrete mathematics, "
-        "numerical analysis, probabilities and statistical analysis, data analysis, calculus, and linear algebra. "
-        "Full Stack Developer Skills and Experience: Flask, C#, PHP, Search Engine Optimization, User Experience, "
-        "Design, User Interface Design, Responsive Design, Postgres, Git, Swift. "
-        "Programming Languages: Python, C#, Java, SQL, HTML5/CSS3, JavaScript."
-        "My email is engineering.paul@icloud.com."
-        "Completed an internship as a robotics software engineer. The internship was my introduction to machine "
-        "learning and artificial intelligence and how to apply it in the real world. As an intern, I developed "
-        "computer vision, natural language processing, and autonomous functionalities for humanoid robots."
-    )
+        "My name is Paul Coleman, a graduate student in the Computer Science master's program at Utah Valley "
+        "University, aiming to become an AI/ML Engineer with a focus on Finance, Cybersecurity, or Healthcare. I have "
+        "5 years of experience in Python and AI/ML frameworks like TensorFlow and PyTorch. I previously worked as a "
+        "Full Stack Web Developer, using tools like C#, ASP.NET Core, and Flask. I earned my BSc in Computer Science "
+        "in 2022 and will complete my MSc in Fall 2025. My AI-related skills include statistics, calculus, "
+        "linear algebra, and data analysis. As a Full Stack Developer, I worked with technologies like PHP, SEO, "
+        "UI/UX Design, Postgres, Git, and Swift. Programming languages include Python, C#, Java, SQL, HTML/CSS, "
+        "and JavaScript. During an internship in robotics, I developed computer vision, NLP, and autonomous "
+        "functionalities for humanoid robots.")
 
     # Combine static context with the question
     context = f"{static_context} {question.strip()}"
