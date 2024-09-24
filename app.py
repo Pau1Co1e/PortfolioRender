@@ -267,10 +267,12 @@ def index():
 @app.route('/test-faq', methods=['GET'])
 def test_faq():
     try:
-        response = global_session.post(FASTAPI_URL, json={
-            "question": "What is AI?",
-            "context": "AI is the simulation of human intelligence."
-        }, timeout=10)
+        response = global_session.post(
+            FASTAPI_URL,
+            json=payload,
+            timeout=30
+        )
+
         response.raise_for_status()
         return jsonify(response.json())
     except requests.exceptions.HTTPError as http_err:
