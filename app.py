@@ -147,7 +147,8 @@ limiter = Limiter(
 
 # Initialize Redis client (for general use)
 if env == "production":
-    FASTAPI_URL = os.getenv('FASTAPI_URL')
+    FASTAPI_URL = os.getenv('FASTAPI_URL', 'http://127.0.0.1:8000/faq/')
+
     if not FASTAPI_URL:
         logger.error("FASTAPI_URL environment variable not set for production.")
         raise ValueError("FASTAPI_URL environment variable not set for production.")
@@ -160,6 +161,9 @@ if env == "production":
     except redis.exceptions.RedisError as e:
         logger.error({"message": "Failed to connect to Redis.", "error": str(e)})
         redis_client = None
+if env == 'development':
+
+    FASTAPI_URL = "http://127.0.0.1:8000/faq/"
 else:
     FASTAPI_URL = os.getenv('FASTAPI_URL')  # Optional in development
     redis_client = None  # No Redis in development
@@ -255,7 +259,7 @@ def handle_server_error(error):
 
 @app.route('/')
 def index():
-    if DEBUG:
+    if DEBUG is True:
         logger.info("Rendered home page", extra={'action': 'render_page', 'page': 'index'})
     return render_template('index.html')
 
