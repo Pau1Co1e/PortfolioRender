@@ -383,33 +383,36 @@ def call_faq_pipeline(question):
     }
 
     try:
-        logger.info(f"Sending request to FastAPI with payload: {payload}", extra={'action': 'faq_pipeline_request'})
-
-        # Make the HTTP POST request to FastAPI using the global_session
+        logger.info(f"Sending request to FastAPI with payload: {payload}")
         response = global_session.post(
             FASTAPI_URL,
             json=payload,
-            timeout=10  # Set a timeout to avoid hanging requests
+            timeout=10
         )
-
-        # Check if the response is successful
-        response.raise_for_status()
-        logger.info(f"Response from FastAPI: {response.json()}", extra={'action': 'faq_pipeline_response'})
-
-        # Parse the FastAPI response
+        response.raise_for_status()  # This will raise an HTTPError for bad responses (4xx or 5xx)
+        logger.info(f"Response from FastAPI: {response.json()}")
         return response.json()
 
     except requests.exceptions.HTTPError as http_err:
-        logger.error(f"HTTP error occurred: {http_err}", extra={'action': 'faq_pipeline_http_error'})
+        logger.error(f"HTTP error occurred: {http_err}")
+        logger.error(f"Response content: {response.content}")
         return {"error": "An HTTP error occurred while calling the FAQ service."}
 
-    except requests.exceptions.Timeout:
-        logger.error("Request to FastAPI timed out", extra={'action': 'faq_pipeline_timeout'})
-        return {"error": "The request to the FAQ service timed out. Please try again later."}
-
     except requests.exceptions.RequestException as req_err:
-        logger.error(f"Request exception occurred: {req_err}", extra={'action': 'faq_pipeline_error'})
+        logger.error(f"Request exception occurred: {req_err}")
         return {"error": "An error occurred while calling the FAQ service."}
+
+    # except requests.exceptions.HTTPError as http_err:
+    #     logger.error(f"HTTP error occurred: {http_err}", extra={'action': 'faq_pipeline_http_error'})
+    #     return {"error": "An HTTP error occurred while calling the FAQ service."}
+    #
+    # except requests.exceptions.Timeout:
+    #     logger.error("Request to FastAPI timed out", extra={'action': 'faq_pipeline_timeout'})
+    #     return {"error": "The request to the FAQ service timed out. Please try again later."}
+    #
+    # except requests.exceptions.RequestException as req_err:
+    #     logger.error(f"Request exception occurred: {req_err}", extra={'action': 'faq_pipeline_error'})
+    #     return {"error": "An error occurred while calling the FAQ service."}
 
 
 @app.route('/videos/<filename>')
