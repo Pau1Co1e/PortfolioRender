@@ -1,5 +1,7 @@
 # Virtual Enviornment
 .venv/
+.DS_Store
+
 /flask_session
 # Byte-compiled / optimized / DLL files
 __pycache__/
